@@ -1,0 +1,114 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+
+:root {
+  --bg-primary: #090d16;
+  --bg-secondary: #121827;
+  --bg-card: rgba(22, 30, 49, 0.85);
+  --border-color: rgba(255, 255, 255, 0.1);
+  --accent-geo: #38bdf8;
+  --accent-env: #34d399;
+  --accent-gold: #fbbf24;
+  --text-primary: #f3f4f6;
+  --text-secondary: #9ca3af;
+  --text-muted: #6b7280;
+  --shadow-glow: 0 10px 30px -10px rgba(56, 189, 248, 0.3);
+  --font-heading: 'Outfit', sans-serif;
+  --font-body: 'Plus Jakarta Sans', sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Glassmorphic Container */
+.glass-panel {
+  background: var(--bg-card);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border-color);
+  border-radius: 20px;
+}
+
+/* Snap Scroll Feed */
+.reel-feed-container {
+  height: calc(100vh - 70px);
+  overflow-y: scroll;
+  scroll-snap-type: y mandatory;
+  scroll-behavior: smooth;
+  scrollbar-width: none;
+}
+
+.reel-feed-container::-webkit-scrollbar {
+  display: none;
+}
+
+.reel-card-item {
+  height: calc(100vh - 70px);
+  scroll-snap-align: start;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+/* Custom Animated Badge */
+.badge-geo {
+  background: rgba(56, 189, 248, 0.15);
+  color: var(--accent-geo);
+  border: 1px solid rgba(56, 189, 248, 0.3);
+}
+
+.badge-env {
+  background: rgba(52, 211, 153, 0.15);
+  color: var(--accent-env);
+  border: 1px solid rgba(52, 211, 153, 0.3);
+}
+
+.badge-gold {
+  background: rgba(251, 191, 36, 0.15);
+  color: var(--accent-gold);
+  border: 1px solid rgba(251, 191, 36, 0.3);
+}
+
+/* Pulse Glow Animation */
+@keyframes pulseGlow {
+  0%, 100% { box-shadow: 0 0 15px rgba(56, 189, 248, 0.2); }
+  50% { box-shadow: 0 0 30px rgba(56, 189, 248, 0.5); }
+}
+
+.glow-active {
+  animation: pulseGlow 3s infinite ease-in-out;
+}
+
+/* Castle Brick Graphic */
+.castle-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 8px;
+  padding: 12px;
+}
+
+.brick {
+  height: 24px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px dashed rgba(255, 255, 255, 0.15);
+  transition: all 0.4s ease;
+}
+
+.brick.mastered {
+  background: linear-gradient(135deg, #f59e0b, #fbbf24);
+  border: 1px solid #fef08a;
+  box-shadow: 0 0 12px rgba(251, 191, 36, 0.5);
+  transform: scale(1.03);
+}
