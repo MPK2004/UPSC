@@ -1,14 +1,13 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { SavedNote } from '../types';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-  console.warn('[UPSC ReelCastle] Missing Supabase env vars. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in .env');
-}
-
-export const supabase = createClient(SUPABASE_URL || '', SUPABASE_ANON_KEY || '');
+export const supabase: SupabaseClient | null =
+  SUPABASE_URL && SUPABASE_ANON_KEY
+    ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+    : null;
 
 const STORAGE_NOTES_KEY = 'upsc_reelcastle_notes';
 const STORAGE_BRICKS_KEY = 'upsc_reelcastle_bricks';
@@ -34,7 +33,9 @@ export const saveNote = (note: Omit<SavedNote, 'id' | 'created_at'>): SavedNote 
   localStorage.setItem(STORAGE_NOTES_KEY, JSON.stringify(notes));
 
   try {
-    supabase.from('upsc_notes').insert([newNote]).then();
+    if (supabase) {
+      supabase.from('upsc_notes').insert([newNote]).then();
+    }
   } catch (e) {}
 
   return newNote;
