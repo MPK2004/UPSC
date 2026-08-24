@@ -1,13 +1,15 @@
 import React from 'react';
 import { Chapter } from '../types';
-import { BookOpen, Layers, CheckCircle, ShieldAlert, Sparkles } from 'lucide-react';
+import { BookOpen, Layers, CheckCircle2, ShieldAlert, X, Sparkles } from 'lucide-react';
 
 interface ChapterSelectorProps {
   chapters: Chapter[];
   selectedSubject: 'Geography' | 'Environment' | 'Combined';
-  setSelectedSubject: (subj: 'Geography' | 'Environment' | 'Combined') => void;
+  setSelectedSubject: (s: 'Geography' | 'Environment' | 'Combined') => void;
   selectedChapterIds: string[];
   setSelectedChapterIds: (ids: string[]) => void;
+  isOpen: boolean;
+  onClose: () => void;
 }
 
 export const ChapterSelector: React.FC<ChapterSelectorProps> = ({
@@ -15,14 +17,22 @@ export const ChapterSelector: React.FC<ChapterSelectorProps> = ({
   selectedSubject,
   setSelectedSubject,
   selectedChapterIds,
-  setSelectedChapterIds
+  setSelectedChapterIds,
+  isOpen,
+  onClose
 }) => {
+  if (!isOpen) return null;
+
+  const filteredChapters = selectedSubject === 'Combined'
+    ? chapters
+    : chapters.filter(c => c.subject === selectedSubject);
+
   const toggleChapter = (id: string) => {
     if (selectedChapterIds.includes(id)) {
-      setSelectedChapterIds(selectedChapterIds.filter(cId => cId !== id));
+      setSelectedChapterIds(selectedChapterIds.filter(i => i !== id));
     } else {
       if (selectedChapterIds.length >= 2) {
-        // Enforce max 2 chapters rule - replace oldest selection
+        // Enforce 1-2 chapter rule
         setSelectedChapterIds([selectedChapterIds[1], id]);
       } else {
         setSelectedChapterIds([...selectedChapterIds, id]);
@@ -30,104 +40,123 @@ export const ChapterSelector: React.FC<ChapterSelectorProps> = ({
     }
   };
 
-  const filteredChapters = selectedSubject === 'Combined'
-    ? chapters
-    : chapters.filter(c => c.subject === selectedSubject);
-
   return (
-    <div className="bg-slate-900/90 border-b border-gray-800 p-3 px-4">
-      <div className="max-w-4xl mx-auto flex flex-col md:flex-row items-center justify-between gap-3">
-        {/* Subject Filter Switcher */}
-        <div className="flex items-center gap-2 bg-slate-950 p-1 rounded-xl border border-gray-800 w-full md:w-auto">
+    <div className="fixed inset-0 z-50 flex justify-center items-end bg-slate-950/80 backdrop-blur-sm animate-fadeIn">
+      {/* Click Backdrop to close */}
+      <div className="absolute inset-0" onClick={onClose} />
+
+      {/* Slide-Up Bottom Drawer Sheet */}
+      <div className="relative w-full max-w-md bg-slate-950 border-t border-gray-800 rounded-t-3xl p-5 space-y-4 max-h-[85vh] overflow-y-auto animate-slideUp z-10 shadow-2xl">
+        {/* Drawer Drag Bar */}
+        <div className="w-12 h-1.5 bg-gray-700 rounded-full mx-auto" />
+
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-gray-800 pb-3">
+          <div className="flex items-center gap-2">
+            <Layers className="w-5 h-5 text-amber-400" />
+            <h2 className="text-base font-extrabold text-white font-heading">
+              Select Chapter Focus (Max 2)
+            </h2>
+          </div>
           <button
-            onClick={() => setSelectedSubject('Geography')}
-            className={`flex-1 md:flex-initial px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
-              selectedSubject === 'Geography'
-                ? 'bg-sky-500/20 text-sky-400 border border-sky-500/50'
-                : 'text-gray-400 hover:text-white'
+            onClick={onClose}
+            className="p-1 rounded-full text-gray-400 hover:text-white bg-slate-900 border border-gray-800"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Subject Filter Pills */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setSelectedSubject('Combined')}
+            className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all ${
+              selectedSubject === 'Combined'
+                ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
+                : 'bg-slate-900 border border-gray-800 text-gray-300'
             }`}
           >
-            🌎 NCERT 11 Geography
+            🌐 Combined
+          </button>
+
+          <button
+            onClick={() => setSelectedSubject('Geography')}
+            className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all ${
+              selectedSubject === 'Geography'
+                ? 'bg-sky-500 text-white shadow-md shadow-sky-500/20'
+                : 'bg-slate-900 border border-gray-800 text-gray-300'
+            }`}
+          >
+            🌍 Geography
           </button>
 
           <button
             onClick={() => setSelectedSubject('Environment')}
-            className={`flex-1 md:flex-initial px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
+            className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all ${
               selectedSubject === 'Environment'
-                ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50'
-                : 'text-gray-400 hover:text-white'
+                ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20'
+                : 'bg-slate-900 border border-gray-800 text-gray-300'
             }`}
           >
-            🌿 PMF IAS Environment
-          </button>
-
-          <button
-            onClick={() => setSelectedSubject('Combined')}
-            className={`flex-1 md:flex-initial px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
-              selectedSubject === 'Combined'
-                ? 'bg-amber-500/20 text-amber-400 border border-amber-500/50'
-                : 'text-gray-400 hover:text-white'
-            }`}
-          >
-            <Sparkles className="w-3.5 h-3.5" />
-            Combined Feed
+            🌿 Environment
           </button>
         </div>
 
-        {/* 1 or 2 Chapter Limit Rule Alert */}
-        <div className="flex items-center gap-2 text-xs">
-          <span className="text-gray-400 flex items-center gap-1">
-            <ShieldAlert className="w-3.5 h-3.5 text-amber-400" />
-            Focus Limit:
-          </span>
-          <span className={`font-bold px-2 py-0.5 rounded-md ${
-            selectedChapterIds.length === 0
-              ? 'bg-slate-800 text-gray-400'
-              : selectedChapterIds.length <= 2
-              ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
-              : 'bg-rose-500/20 text-rose-400'
-          }`}>
-            {selectedChapterIds.length === 0
-              ? 'All Chapters'
-              : `${selectedChapterIds.length} / 2 Chapters Active`}
-          </span>
-
-          {selectedChapterIds.length > 0 && (
-            <button
-              onClick={() => setSelectedChapterIds([])}
-              className="text-[11px] text-gray-500 hover:text-gray-300 underline ml-1"
-            >
-              Reset
-            </button>
-          )}
+        {/* 1-2 Focus Notice Rule */}
+        <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-200 flex items-start gap-2">
+          <ShieldAlert className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
+          <p className="leading-snug">
+            <span className="font-bold">Strict Study Focus:</span> Selecting 1 or 2 chapters targets your ByteReel feed so you master topics brick-by-brick!
+          </p>
         </div>
-      </div>
 
-      {/* Chapter Selection Chips */}
-      <div className="max-w-4xl mx-auto mt-3 flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-        {filteredChapters.map(ch => {
-          const isSelected = selectedChapterIds.includes(ch.id);
-          const isGeo = ch.subject === 'Geography';
+        {/* Chapter List Cards */}
+        <div className="space-y-2.5 pt-1">
+          {filteredChapters.map(ch => {
+            const isSelected = selectedChapterIds.includes(ch.id);
+            return (
+              <button
+                key={ch.id}
+                onClick={() => toggleChapter(ch.id)}
+                className={`w-full p-3.5 rounded-2xl border text-left transition-all flex items-start justify-between gap-3 ${
+                  isSelected
+                    ? 'bg-amber-500/15 border-amber-500 text-white shadow-lg shadow-amber-500/10'
+                    : 'bg-slate-900/60 border-gray-800 text-gray-300 hover:border-gray-700'
+                }`}
+              >
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase ${
+                      ch.subject === 'Geography' ? 'bg-sky-500/20 text-sky-400' : 'bg-emerald-500/20 text-emerald-400'
+                    }`}>
+                      {ch.subject}
+                    </span>
+                    <span className="text-xs font-extrabold text-white">
+                      Ch {ch.chapter_number}: {ch.title}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-gray-400 leading-snug line-clamp-1">
+                    {ch.description}
+                  </p>
+                </div>
 
-          return (
-            <button
-              key={ch.id}
-              onClick={() => toggleChapter(ch.id)}
-              className={`flex-shrink-0 flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs transition-all ${
-                isSelected
-                  ? isGeo
-                    ? 'bg-sky-950/80 border-sky-400 text-sky-200 shadow-md shadow-sky-500/20'
-                    : 'bg-emerald-950/80 border-emerald-400 text-emerald-200 shadow-md shadow-emerald-500/20'
-                  : 'bg-slate-950/60 border-gray-800 text-gray-400 hover:border-gray-700 hover:text-white'
-              }`}
-            >
-              <span className={`w-2 h-2 rounded-full ${isGeo ? 'bg-sky-400' : 'bg-emerald-400'}`} />
-              <span className="font-semibold text-white">Ch {ch.chapter_number}:</span>
-              <span className="truncate max-w-[160px]">{ch.title}</span>
-              {isSelected && <CheckCircle className="w-3.5 h-3.5 text-amber-400 ml-1" />}
-            </button>
-          );
-        })}
+                <div className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 mt-1 ${
+                  isSelected ? 'bg-amber-500 text-slate-950' : 'border border-gray-700'
+                }`}>
+                  {isSelected && <CheckCircle2 className="w-4 h-4" />}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Done Button */}
+        <button
+          onClick={onClose}
+          className="w-full py-3 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-400 text-slate-950 font-black text-sm shadow-lg shadow-amber-500/30 active:scale-98 transition-all"
+        >
+          Apply Chapter Focus
+        </button>
       </div>
     </div>
   );

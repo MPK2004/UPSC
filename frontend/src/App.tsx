@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Header } from './components/Header';
+import { BottomNav } from './components/BottomNav';
 import { ChapterSelector } from './components/ChapterSelector';
 import { ReelFeed } from './components/ReelFeed';
 import { CastleBuilder } from './components/CastleBuilder';
@@ -13,10 +14,11 @@ export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'reels' | 'test' | 'castle'>('reels');
   const [selectedSubject, setSelectedSubject] = useState<'Geography' | 'Environment' | 'Combined'>('Combined');
   const [selectedChapterIds, setSelectedChapterIds] = useState<string[]>([]);
-  const [chapters, setChapters] = useState<Chapter[]>(CHAPTERS);
+  const [chapters] = useState<Chapter[]>(CHAPTERS);
   const [cards, setCards] = useState<ByteCard[]>(BYTE_REEL_CARDS);
   const [masteredBrickIds, setMasteredBrickIds] = useState<string[]>(getMasteredBricks());
   const [isNotesOpen, setIsNotesOpen] = useState<boolean>(false);
+  const [isChapterDrawerOpen, setIsChapterDrawerOpen] = useState<boolean>(false);
 
   // Filter byte cards locally for fast instantaneous scrolling & Vercel deployment
   useEffect(() => {
@@ -37,29 +39,17 @@ export const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-gray-100 flex flex-col font-sans">
-      {/* Top Header */}
+    <div className="min-h-screen w-full bg-slate-950 text-gray-100 flex flex-col font-sans relative overflow-x-hidden">
+      {/* Mobile Top Header Overlay */}
       <Header
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
         brickCount={masteredBrickIds.length}
-        openNotes={() => setIsNotesOpen(true)}
+        openChapterDrawer={() => setIsChapterDrawerOpen(true)}
         selectedChapterCount={selectedChapterIds.length}
+        selectedSubject={selectedSubject}
       />
 
-      {/* Chapter Focus Selector Bar (Visible in Reels & Test Mode) */}
-      {activeTab !== 'castle' && (
-        <ChapterSelector
-          chapters={chapters}
-          selectedSubject={selectedSubject}
-          setSelectedSubject={setSelectedSubject}
-          selectedChapterIds={selectedChapterIds}
-          setSelectedChapterIds={setSelectedChapterIds}
-        />
-      )}
-
-      {/* Main App View Switcher */}
-      <main className="flex-1">
+      {/* Main View Container */}
+      <main className="flex-1 w-full max-w-md mx-auto">
         {activeTab === 'reels' && (
           <ReelFeed
             cards={cards}
@@ -69,23 +59,46 @@ export const App: React.FC = () => {
         )}
 
         {activeTab === 'test' && (
-          <TestingArena
-            selectedChapterIds={selectedChapterIds}
-            selectedSubject={selectedSubject}
-            onBrickUnlocked={handleBrickEarned}
-          />
+          <div className="pt-14 pb-20">
+            <TestingArena
+              selectedChapterIds={selectedChapterIds}
+              selectedSubject={selectedSubject}
+              onBrickUnlocked={handleBrickEarned}
+            />
+          </div>
         )}
 
         {activeTab === 'castle' && (
-          <CastleBuilder
-            brickCount={masteredBrickIds.length}
-            totalAvailableBricks={12}
-            masteredIds={masteredBrickIds}
-          />
+          <div className="pt-16 pb-24">
+            <CastleBuilder
+              brickCount={masteredBrickIds.length}
+              totalAvailableBricks={12}
+              masteredIds={masteredBrickIds}
+            />
+          </div>
         )}
       </main>
 
-      {/* Notes Drawer Modal */}
+      {/* Mobile Chapter Selector Bottom Sheet Drawer */}
+      <ChapterSelector
+        chapters={chapters}
+        selectedSubject={selectedSubject}
+        setSelectedSubject={setSelectedSubject}
+        selectedChapterIds={selectedChapterIds}
+        setSelectedChapterIds={setSelectedChapterIds}
+        isOpen={isChapterDrawerOpen}
+        onClose={() => setIsChapterDrawerOpen(false)}
+      />
+
+      {/* Pinned Mobile Bottom Navigation Bar */}
+      <BottomNav
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        openNotes={() => setIsNotesOpen(true)}
+        brickCount={masteredBrickIds.length}
+      />
+
+      {/* Saved Notes Drawer Modal */}
       <NotesDrawer
         isOpen={isNotesOpen}
         onClose={() => setIsNotesOpen(false)}
