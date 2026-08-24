@@ -80,19 +80,47 @@ h1, h2, h3, h4, .font-heading {
   border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
-/* Floating Action Bar — compact bottom row inside reel card */
+/* Floating Action Bar — right side with toggle */
 .floating-action-bar {
   position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
+  right: 0.5rem;
+  bottom: 5rem;
   z-index: 30;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.8rem;
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s ease;
+}
+
+.floating-action-bar.bar-hidden {
+  transform: translateX(calc(100% + 1rem));
+  opacity: 0;
+  pointer-events: none;
+}
+
+.bar-toggle {
+  position: absolute;
+  right: 0.5rem;
+  bottom: 5rem;
+  z-index: 31;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
-  padding: 0.625rem 1rem;
-  background: linear-gradient(to top, rgba(5, 8, 17, 0.95) 60%, transparent);
+  color: #9ca3af;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.bar-toggle:hover {
+  color: #f3f4f6;
+  border-color: rgba(255, 255, 255, 0.25);
 }
 
 .action-btn {

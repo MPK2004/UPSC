@@ -71,7 +71,7 @@ export const App: React.FC = () => {
           <div className="pt-16 pb-24">
             <CastleBuilder
               brickCount={masteredBrickIds.length}
-              totalAvailableBricks={12}
+              totalAvailableBricks={cards.length}
               masteredIds={masteredBrickIds}
             />
           </div>

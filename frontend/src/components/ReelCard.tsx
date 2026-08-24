@@ -18,6 +18,7 @@ export const ReelCard: React.FC<ReelCardProps> = ({ card, onBrickEarned }) => {
   const [isSavedNote, setIsSavedNote] = useState(false);
   const [showMiniQuiz, setShowMiniQuiz] = useState(false);
   const [miniQuizAnswer, setMiniQuizAnswer] = useState<number | null>(null);
+  const [barVisible, setBarVisible] = useState(true);
 
   const masteredIds = getMasteredBricks();
   const isMastered = masteredIds.includes(card.id);
@@ -73,7 +74,7 @@ export const ReelCard: React.FC<ReelCardProps> = ({ card, onBrickEarned }) => {
   };
 
   return (
-    <div className="mobile-reel-card p-5 pt-14 pb-28 max-w-md mx-auto">
+    <div className="mobile-reel-card p-5 pt-14 pb-20 max-w-md mx-auto">
       {/* Top Card Badge Overlay */}
       <div className="flex items-center justify-between z-20">
         <div className="flex items-center gap-2">
@@ -91,7 +92,7 @@ export const ReelCard: React.FC<ReelCardProps> = ({ card, onBrickEarned }) => {
       </div>
 
       {/* Main Reel Content Block */}
-      <div className="space-y-4 my-auto z-10">
+      <div className="space-y-4 my-auto z-10 pr-12">
         {/* Title */}
         <h2 className="text-xl font-extrabold text-white leading-tight font-heading">
           {card.title}
@@ -187,8 +188,17 @@ export const ReelCard: React.FC<ReelCardProps> = ({ card, onBrickEarned }) => {
         )}
       </div>
 
-      {/* Floating Action Bar (Right Side TikTok Style) */}
-      <div className="floating-action-bar" role="toolbar" aria-label="Card actions">
+      {/* Toggle Button for Action Bar */}
+      <button
+        onClick={() => setBarVisible(!barVisible)}
+        className="bar-toggle"
+        aria-label={barVisible ? 'Hide action buttons' : 'Show action buttons'}
+      >
+        {barVisible ? '×' : '⋯'}
+      </button>
+
+      {/* Floating Action Bar (Right Side) */}
+      <div className={`floating-action-bar ${barVisible ? '' : 'bar-hidden'}`} role="toolbar" aria-label="Card actions">
         {/* 1. Master Brick Button */}
         <button
           onClick={handleMasterBrick}

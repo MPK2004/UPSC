@@ -59,7 +59,7 @@ export const CastleBuilder: React.FC<CastleBuilderProps> = ({
         </h3>
 
         <div className="castle-grid">
-          {Array.from({ length: Math.max(12, totalAvailableBricks) }).map((_, idx) => {
+          {Array.from({ length: totalAvailableBricks }).map((_, idx) => {
             const isMastered = idx < brickCount;
             return (
               <div
