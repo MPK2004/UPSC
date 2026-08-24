@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { ByteCard } from '../types';
 import { addMasteredBrick, saveNote, getMasteredBricks } from '../utils/supabaseClient';
-import { Volume2, VolumeX, Castle, Bookmark, AlertCircle, Lightbulb, ZoomIn, Check } from 'lucide-react';
+import { UPSC_PYQS } from '../data/upscData';
+import { Volume2, VolumeX, Castle, Bookmark, AlertCircle, Lightbulb, ZoomIn, Check, HelpCircle } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
 interface ReelCardProps {
@@ -15,9 +16,16 @@ export const ReelCard: React.FC<ReelCardProps> = ({ card, onBrickEarned }) => {
   const [showTip, setShowTip] = useState(false);
   const [showDiagramZoom, setShowDiagramZoom] = useState(false);
   const [isSavedNote, setIsSavedNote] = useState(false);
+  const [showMiniQuiz, setShowMiniQuiz] = useState(false);
+  const [miniQuizAnswer, setMiniQuizAnswer] = useState<number | null>(null);
 
   const masteredIds = getMasteredBricks();
   const isMastered = masteredIds.includes(card.id);
+
+  // Find a matching PYQ for this card's chapter
+  const matchingPYQ = UPSC_PYQS.find(q => q.chapter_id === card.chapter_id);
+  const miniQuizAnswered = miniQuizAnswer !== null;
+  const miniQuizCorrect = miniQuizAnswer === matchingPYQ?.correct_index;
 
   // Audio Text-to-Speech
   const handleToggleAudio = () => {
@@ -65,7 +73,7 @@ export const ReelCard: React.FC<ReelCardProps> = ({ card, onBrickEarned }) => {
   };
 
   return (
-    <div className="mobile-reel-card p-5 pt-14 pb-20 max-w-md mx-auto">
+    <div className="mobile-reel-card p-5 pt-14 pb-28 max-w-md mx-auto">
       {/* Top Card Badge Overlay */}
       <div className="flex items-center justify-between z-20">
         <div className="flex items-center gap-2">
@@ -83,7 +91,7 @@ export const ReelCard: React.FC<ReelCardProps> = ({ card, onBrickEarned }) => {
       </div>
 
       {/* Main Reel Content Block */}
-      <div className="space-y-4 my-auto z-10 pr-12">
+      <div className="space-y-4 my-auto z-10">
         {/* Title */}
         <h2 className="text-xl font-extrabold text-white leading-tight font-heading">
           {card.title}
@@ -141,6 +149,42 @@ export const ReelCard: React.FC<ReelCardProps> = ({ card, onBrickEarned }) => {
             <p className="leading-snug">{card.upsc_prelims_tip}</p>
           </div>
         )}
+
+        {/* Mini Quiz Inline */}
+        {showMiniQuiz && matchingPYQ && (
+          <div className="p-4 rounded-2xl bg-slate-900/90 border border-gray-800 space-y-3 animate-fadeIn">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-extrabold uppercase text-amber-400 tracking-wider">Quick PYQ</span>
+              <span className="text-[10px] text-gray-500">{matchingPYQ.year} · {matchingPYQ.difficulty}</span>
+            </div>
+            <p className="text-xs font-semibold text-white leading-relaxed whitespace-pre-line">{matchingPYQ.question}</p>
+            <div className="space-y-2">
+              {matchingPYQ.options.map((opt, i) => {
+                const isCorrect = i === matchingPYQ.correct_index;
+                const isChosen = miniQuizAnswer === i;
+                let optStyle = 'bg-slate-800/70 border-gray-700 text-gray-300';
+                if (miniQuizAnswered && isCorrect) optStyle = 'bg-emerald-500/20 border-emerald-500 text-emerald-200';
+                else if (miniQuizAnswered && isChosen && !isCorrect) optStyle = 'bg-rose-500/20 border-rose-500 text-rose-200';
+                else if (isChosen) optStyle = 'bg-amber-500/15 border-amber-500 text-amber-200';
+                return (
+                  <button
+                    key={i}
+                    onClick={() => !miniQuizAnswered && setMiniQuizAnswer(i)}
+                    disabled={miniQuizAnswered}
+                    className={`w-full p-2.5 rounded-xl border text-left text-[11px] font-medium transition-all ${optStyle}`}
+                  >
+                    <span className="font-bold mr-1.5">{String.fromCharCode(65 + i)}.</span>{opt}
+                  </button>
+                );
+              })}
+            </div>
+            {miniQuizAnswered && (
+              <div className={`p-2.5 rounded-xl text-[11px] font-bold leading-snug ${miniQuizCorrect ? 'bg-emerald-500/10 text-emerald-300' : 'bg-rose-500/10 text-rose-300'}`}>
+                {miniQuizCorrect ? '✓ Correct!' : `✗ Wrong — ${matchingPYQ.options[matchingPYQ.correct_index]}`}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Floating Action Bar (Right Side TikTok Style) */}
@@ -167,7 +211,21 @@ export const ReelCard: React.FC<ReelCardProps> = ({ card, onBrickEarned }) => {
           <span className="action-btn-label">{isPlayingAudio ? 'Stop' : 'Listen'}</span>
         </button>
 
-        {/* 3. Mnemonic Trick Toggle */}
+        {/* 3. Mini Quiz Toggle */}
+        {matchingPYQ && (
+          <button
+            onClick={() => { setShowMiniQuiz(!showMiniQuiz); setMiniQuizAnswer(null); }}
+            aria-label={showMiniQuiz ? 'Hide quiz' : 'Quick quiz'}
+            aria-expanded={showMiniQuiz}
+            className={`action-btn ${showMiniQuiz ? 'active-amber' : ''}`}
+            title="Quick Quiz"
+          >
+            <HelpCircle className="w-5 h-5" aria-hidden="true" />
+            <span className="action-btn-label">Quiz</span>
+          </button>
+        )}
+
+        {/* 4. Mnemonic Trick Toggle */}
         {card.mnemonic && (
           <button
             onClick={() => setShowMnemonic(!showMnemonic)}

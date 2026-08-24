@@ -80,21 +80,24 @@ h1, h2, h3, h4, .font-heading {
   border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
-/* Floating Action Bar on Right Side of Reel */
+/* Floating Action Bar — compact bottom row inside reel card */
 .floating-action-bar {
   position: absolute;
-  right: 0.75rem;
-  bottom: 5.5rem;
+  bottom: 0;
+  left: 0;
+  right: 0;
   z-index: 30;
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 1.1rem;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1rem;
+  background: linear-gradient(to top, rgba(5, 8, 17, 0.95) 60%, transparent);
 }
 
 .action-btn {
-  width: 3.25rem;
-  height: 3.25rem;
+  width: 2.75rem;
+  height: 2.75rem;
   border-radius: 50%;
   background: rgba(15, 23, 42, 0.85);
   backdrop-filter: blur(10px);
@@ -105,7 +108,7 @@ h1, h2, h3, h4, .font-heading {
   justify-content: center;
   color: #e5e7eb;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
 }
 
 .action-btn:active {
@@ -133,11 +136,11 @@ h1, h2, h3, h4, .font-heading {
 }
 
 .action-btn-label {
-  font-size: 0.6rem;
+  font-size: 0.55rem;
   font-weight: 800;
-  margin-top: 0.15rem;
+  margin-top: 0.1rem;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.03em;
 }
 
 /* Castle Grid for Mobile */
