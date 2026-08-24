@@ -90,7 +90,7 @@ export const BYTE_REEL_CARDS: ByteCard[] = [
     subject: 'Geography',
     title: 'P-Waves vs S-Waves (Seismic Shadow Zones)',
     concept_type: 'Visual Diagram',
-    diagram_url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d7/Shadow_zone.svg/640px-Shadow_zone.svg.png',
+    diagram_url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/10/Earthquake_wave_shadow_zone.svg/960px-Earthquake_wave_shadow_zone.svg.png',
     bullet_points: [
       '⚡ P-Waves (Primary): Longitudinal waves, fastest, pass through Solid, Liquid & Gas.',
       '🚫 S-Waves (Secondary): Transverse waves, CANNOT pass through liquids (Outer Core).',
@@ -105,7 +105,7 @@ export const BYTE_REEL_CARDS: ByteCard[] = [
     subject: 'Geography',
     title: '3 Types of Tectonic Plate Boundaries',
     concept_type: 'Visual Diagram',
-    diagram_url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0b/Tectonic_plate_boundaries.png/640px-Tectonic_plate_boundaries.png',
+    diagram_url: 'https://upload.wikimedia.org/wikipedia/commons/4/40/Tectonic_plate_boundaries.png',
     bullet_points: [
       '↔️ Divergent: Plates move apart → Seafloor spreading (e.g. Mid-Atlantic Ridge).',
       '↗️ Convergent: Subduction zone → Deep ocean trenches & fold mountains (Andes & Himalayas).',
@@ -120,7 +120,7 @@ export const BYTE_REEL_CARDS: ByteCard[] = [
     subject: 'Geography',
     title: 'Atmosphere Layers & Normal Lapse Rate',
     concept_type: 'Visual Diagram',
-    diagram_url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b5/Layers_of_the_atmosphere.png/640px-Layers_of_the_atmosphere.png',
+    diagram_url: 'https://upload.wikimedia.org/wikipedia/commons/c/c7/Layers_of_the_atmosphere.PNG',
     bullet_points: [
       '🌡️ Troposphere: Thicker at Equator (~18 km) than Poles (~8 km) due to strong convection currents.',
       '📉 Normal Lapse Rate: Temp drops ~6.5°C per 1,000m (1 km) rise in Troposphere.',
