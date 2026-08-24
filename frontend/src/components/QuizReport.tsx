@@ -1,6 +1,6 @@
 import React from 'react';
 import { DiagnosticReport } from '../types';
-import { Award, AlertTriangle, CheckCircle2, RotateCcw, Castle, BookOpen } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, RotateCcw, Castle, BookOpen } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
 interface QuizReportProps {
@@ -89,16 +89,18 @@ export const QuizReport: React.FC<QuizReportProps> = ({ report, onRetake, onCont
         <div className="flex items-center justify-center gap-2 pt-1">
           <button
             onClick={onRetake}
+            aria-label="Retake quiz"
             className="flex-1 flex items-center justify-center gap-1.5 py-3 rounded-xl bg-slate-900 border border-gray-800 text-gray-300 font-extrabold text-xs active:scale-95 transition-all"
           >
-            <RotateCcw className="w-4 h-4" /> Retake Test
+            <RotateCcw className="w-4 h-4" aria-hidden="true" /> Retake Test
           </button>
 
           <button
             onClick={onContinue}
+            aria-label="Return to ByteReels"
             className="flex-1 flex items-center justify-center gap-1.5 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-amber-400 text-slate-950 font-black text-xs shadow-lg shadow-amber-500/20 active:scale-95 transition-all"
           >
-            <Castle className="w-4 h-4" /> Back to Reels
+            <Castle className="w-4 h-4" aria-hidden="true" /> Back to Reels
           </button>
         </div>
       </div>

@@ -1,7 +1,6 @@
 import React from 'react';
 import { ByteCard } from '../types';
 import { ReelCard } from './ReelCard';
-import { Sparkles, ChevronDown } from 'lucide-react';
 
 interface ReelFeedProps {
   cards: ByteCard[];

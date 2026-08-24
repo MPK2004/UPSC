@@ -1,10 +1,14 @@
 import { createClient } from '@supabase/supabase-js';
 import { SavedNote } from '../types';
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://pftpnhhhrtylsljijsjx.supabase.co';
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_n-sqmvR8-7a9zk_n6VTdMg_sjPgP7tv';
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+  console.warn('[UPSC ReelCastle] Missing Supabase env vars. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in .env');
+}
+
+export const supabase = createClient(SUPABASE_URL || '', SUPABASE_ANON_KEY || '');
 
 const STORAGE_NOTES_KEY = 'upsc_reelcastle_notes';
 const STORAGE_BRICKS_KEY = 'upsc_reelcastle_bricks';
@@ -44,9 +48,9 @@ export const deleteNote = (id: string) => {
 export const getMasteredBricks = (): string[] => {
   try {
     const data = localStorage.getItem(STORAGE_BRICKS_KEY);
-    return data ? JSON.parse(data) : ['card-geo-01', 'card-env-01'];
+    return data ? JSON.parse(data) : [];
   } catch (e) {
-    return ['card-geo-01', 'card-env-01'];
+    return [];
   }
 };
 

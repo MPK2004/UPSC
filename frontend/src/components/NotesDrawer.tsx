@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { SavedNote } from '../types';
 import { getSavedNotes, deleteNote } from '../utils/supabaseClient';
-import { X, Trash2, StickyNote, Bookmark, Sparkles, BookOpen } from 'lucide-react';
+import { X, Trash2, StickyNote, Bookmark } from 'lucide-react';
 
 interface NotesDrawerProps {
   isOpen: boolean;
@@ -19,7 +19,7 @@ export const NotesDrawer: React.FC<NotesDrawerProps> = ({ isOpen, onClose }) => 
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-slate-950/80 backdrop-blur-sm animate-fadeIn">
+    <div className="fixed inset-0 z-50 flex justify-end bg-slate-950/80 backdrop-blur-sm animate-fadeIn" role="dialog" aria-modal="true" aria-label="Saved notes">
       <div className="w-full max-w-md h-full bg-slate-950 border-l border-gray-800 p-5 overflow-y-auto space-y-5">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-gray-800 pb-3">
@@ -29,6 +29,7 @@ export const NotesDrawer: React.FC<NotesDrawerProps> = ({ isOpen, onClose }) => 
           </div>
           <button
             onClick={onClose}
+            aria-label="Close notes drawer"
             className="p-1.5 rounded-lg text-gray-400 hover:text-white bg-slate-900 border border-gray-800"
           >
             <X className="w-5 h-5" />
@@ -54,6 +55,7 @@ export const NotesDrawer: React.FC<NotesDrawerProps> = ({ isOpen, onClose }) => 
                   </span>
                   <button
                     onClick={() => handleDelete(note.id)}
+                    aria-label={`Delete note: ${note.title}`}
                     className="text-gray-500 hover:text-rose-400 p-1"
                     title="Delete Note"
                   >

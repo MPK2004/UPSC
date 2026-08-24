@@ -171,6 +171,15 @@ h1, h2, h3, h4, .font-heading {
   animation: pulseGlow 2.5s infinite ease-in-out;
 }
 
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.2s ease-out forwards;
+}
+
 @keyframes slideUpSheet {
   from { transform: translateY(100%); }
   to { transform: translateY(0); }
@@ -178,4 +187,32 @@ h1, h2, h3, h4, .font-heading {
 
 .animate-slideUp {
   animation: slideUpSheet 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Badge for subject labels */
+.badge-gold {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: #050811;
+  font-weight: 800;
+}
+
+/* Focus ring for keyboard navigation */
+:focus-visible {
+  outline: 2px solid #f59e0b;
+  outline-offset: 2px;
+}
+
+/* Reduced motion: disable animations for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .mobile-reel-feed {
+    scroll-behavior: auto;
+  }
 }

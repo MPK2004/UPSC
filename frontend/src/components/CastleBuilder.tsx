@@ -1,5 +1,5 @@
 import React from 'react';
-import { Castle, Award, Trophy, Sparkles, CheckCircle2, BookOpen } from 'lucide-react';
+import { Castle, Award, Trophy, Sparkles } from 'lucide-react';
 
 interface CastleBuilderProps {
   brickCount: number;
@@ -9,8 +9,7 @@ interface CastleBuilderProps {
 
 export const CastleBuilder: React.FC<CastleBuilderProps> = ({
   brickCount,
-  totalAvailableBricks,
-  masteredIds
+  totalAvailableBricks
 }) => {
   const percentage = Math.min(100, Math.round((brickCount / Math.max(1, totalAvailableBricks)) * 100));
 

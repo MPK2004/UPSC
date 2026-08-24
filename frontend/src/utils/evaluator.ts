@@ -1,4 +1,4 @@
-import { PYQQuestion, DiagnosticReport, ItemReport } from '../types';
+import { DiagnosticReport, ItemReport } from '../types';
 import { UPSC_PYQS } from '../data/upscData';
 
 export const evaluateQuizClient = (

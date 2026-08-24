@@ -1,6 +1,6 @@
 import React from 'react';
 import { Chapter } from '../types';
-import { BookOpen, Layers, CheckCircle2, ShieldAlert, X, Sparkles } from 'lucide-react';
+import { Layers, CheckCircle2, ShieldAlert, X } from 'lucide-react';
 
 interface ChapterSelectorProps {
   chapters: Chapter[];
@@ -41,9 +41,9 @@ export const ChapterSelector: React.FC<ChapterSelectorProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-center items-end bg-slate-950/80 backdrop-blur-sm animate-fadeIn">
+    <div className="fixed inset-0 z-50 flex justify-center items-end bg-slate-950/80 backdrop-blur-sm animate-fadeIn" role="dialog" aria-modal="true" aria-label="Chapter selector">
       {/* Click Backdrop to close */}
-      <div className="absolute inset-0" onClick={onClose} />
+      <div className="absolute inset-0" onClick={onClose} onKeyDown={(e) => { if (e.key === 'Escape') onClose(); }} tabIndex={-1} />
 
       {/* Slide-Up Bottom Drawer Sheet */}
       <div className="relative w-full max-w-md bg-slate-950 border-t border-gray-800 rounded-t-3xl p-5 space-y-4 max-h-[85vh] overflow-y-auto animate-slideUp z-10 shadow-2xl">
@@ -60,6 +60,7 @@ export const ChapterSelector: React.FC<ChapterSelectorProps> = ({
           </div>
           <button
             onClick={onClose}
+            aria-label="Close chapter selector"
             className="p-1 rounded-full text-gray-400 hover:text-white bg-slate-900 border border-gray-800"
           >
             <X className="w-5 h-5" />
@@ -70,6 +71,7 @@ export const ChapterSelector: React.FC<ChapterSelectorProps> = ({
         <div className="flex items-center gap-2">
           <button
             onClick={() => setSelectedSubject('Combined')}
+            aria-pressed={selectedSubject === 'Combined'}
             className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all ${
               selectedSubject === 'Combined'
                 ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
@@ -81,6 +83,7 @@ export const ChapterSelector: React.FC<ChapterSelectorProps> = ({
 
           <button
             onClick={() => setSelectedSubject('Geography')}
+            aria-pressed={selectedSubject === 'Geography'}
             className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all ${
               selectedSubject === 'Geography'
                 ? 'bg-sky-500 text-white shadow-md shadow-sky-500/20'
@@ -92,6 +95,7 @@ export const ChapterSelector: React.FC<ChapterSelectorProps> = ({
 
           <button
             onClick={() => setSelectedSubject('Environment')}
+            aria-pressed={selectedSubject === 'Environment'}
             className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all ${
               selectedSubject === 'Environment'
                 ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20'
@@ -118,6 +122,8 @@ export const ChapterSelector: React.FC<ChapterSelectorProps> = ({
               <button
                 key={ch.id}
                 onClick={() => toggleChapter(ch.id)}
+                aria-pressed={isSelected}
+                aria-label={`${ch.subject} chapter ${ch.chapter_number}: ${ch.title}${isSelected ? ' — selected' : ''}`}
                 className={`w-full p-3.5 rounded-2xl border text-left transition-all flex items-start justify-between gap-3 ${
                   isSelected
                     ? 'bg-amber-500/15 border-amber-500 text-white shadow-lg shadow-amber-500/10'

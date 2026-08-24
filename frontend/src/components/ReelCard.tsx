@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { ByteCard } from '../types';
-import { addMasteredBrick, saveNote, toggleBookmark, getBookmarks, getMasteredBricks } from '../utils/supabaseClient';
-import { Volume2, VolumeX, Castle, Bookmark, Sparkles, AlertCircle, Lightbulb, Image as ImageIcon, ZoomIn, Check } from 'lucide-react';
+import { addMasteredBrick, saveNote, getMasteredBricks } from '../utils/supabaseClient';
+import { Volume2, VolumeX, Castle, Bookmark, AlertCircle, Lightbulb, ZoomIn, Check } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
 interface ReelCardProps {
@@ -18,9 +18,6 @@ export const ReelCard: React.FC<ReelCardProps> = ({ card, onBrickEarned }) => {
 
   const masteredIds = getMasteredBricks();
   const isMastered = masteredIds.includes(card.id);
-
-  const bookmarks = getBookmarks();
-  const isBookmarked = bookmarks.includes(card.id);
 
   // Audio Text-to-Speech
   const handleToggleAudio = () => {
@@ -96,6 +93,10 @@ export const ReelCard: React.FC<ReelCardProps> = ({ card, onBrickEarned }) => {
         {card.diagram_url && (
           <div
             onClick={() => setShowDiagramZoom(true)}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setShowDiagramZoom(true); }}
+            role="button"
+            tabIndex={0}
+            aria-label={`Zoom diagram: ${card.title}`}
             className="relative rounded-2xl overflow-hidden border border-gray-800 bg-slate-900 group cursor-pointer shadow-lg"
           >
             <img
@@ -143,24 +144,26 @@ export const ReelCard: React.FC<ReelCardProps> = ({ card, onBrickEarned }) => {
       </div>
 
       {/* Floating Action Bar (Right Side TikTok Style) */}
-      <div className="floating-action-bar">
+      <div className="floating-action-bar" role="toolbar" aria-label="Card actions">
         {/* 1. Master Brick Button */}
         <button
           onClick={handleMasterBrick}
+          aria-label={isMastered ? 'Brick mastered' : 'Mark brick as mastered'}
           className={`action-btn ${isMastered ? 'active-amber' : ''}`}
           title="Master Brick"
         >
-          <Castle className="w-5 h-5" />
+          <Castle className="w-5 h-5" aria-hidden="true" />
           <span className="action-btn-label">{isMastered ? 'Mastered' : 'Brick'}</span>
         </button>
 
         {/* 2. Audio Read-Aloud */}
         <button
           onClick={handleToggleAudio}
+          aria-label={isPlayingAudio ? 'Stop audio' : 'Listen to card'}
           className={`action-btn ${isPlayingAudio ? 'active-emerald' : ''}`}
           title="Audio TTS"
         >
-          {isPlayingAudio ? <VolumeX className="w-5 h-5 animate-pulse" /> : <Volume2 className="w-5 h-5" />}
+          {isPlayingAudio ? <VolumeX className="w-5 h-5 animate-pulse" aria-hidden="true" /> : <Volume2 className="w-5 h-5" aria-hidden="true" />}
           <span className="action-btn-label">{isPlayingAudio ? 'Stop' : 'Listen'}</span>
         </button>
 
@@ -168,10 +171,12 @@ export const ReelCard: React.FC<ReelCardProps> = ({ card, onBrickEarned }) => {
         {card.mnemonic && (
           <button
             onClick={() => setShowMnemonic(!showMnemonic)}
+            aria-label={showMnemonic ? 'Hide memory trick' : 'Show memory trick'}
+            aria-expanded={showMnemonic}
             className={`action-btn ${showMnemonic ? 'active-amber' : ''}`}
             title="Mnemonic Trick"
           >
-            <Lightbulb className="w-5 h-5" />
+            <Lightbulb className="w-5 h-5" aria-hidden="true" />
             <span className="action-btn-label">Trick</span>
           </button>
         )}
@@ -180,10 +185,12 @@ export const ReelCard: React.FC<ReelCardProps> = ({ card, onBrickEarned }) => {
         {card.upsc_prelims_tip && (
           <button
             onClick={() => setShowTip(!showTip)}
+            aria-label={showTip ? 'Hide UPSC tip' : 'Show UPSC tip'}
+            aria-expanded={showTip}
             className={`action-btn ${showTip ? 'active-sky' : ''}`}
             title="UPSC Tip"
           >
-            <AlertCircle className="w-5 h-5" />
+            <AlertCircle className="w-5 h-5" aria-hidden="true" />
             <span className="action-btn-label">Tip</span>
           </button>
         )}
@@ -191,19 +198,21 @@ export const ReelCard: React.FC<ReelCardProps> = ({ card, onBrickEarned }) => {
         {/* 5. Save Note Button */}
         <button
           onClick={handleSaveNote}
+          aria-label={isSavedNote ? 'Note saved' : 'Save note'}
           className={`action-btn ${isSavedNote ? 'active-emerald' : ''}`}
           title="Save Note"
         >
-          {isSavedNote ? <Check className="w-5 h-5" /> : <Bookmark className="w-5 h-5" />}
+          {isSavedNote ? <Check className="w-5 h-5" aria-hidden="true" /> : <Bookmark className="w-5 h-5" aria-hidden="true" />}
           <span className="action-btn-label">{isSavedNote ? 'Saved' : 'Save'}</span>
         </button>
       </div>
 
       {/* Diagram Fullscreen Modal */}
       {showDiagramZoom && card.diagram_url && (
-        <div className="fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-xl flex flex-col items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-xl flex flex-col items-center justify-center p-4" role="dialog" aria-modal="true" aria-label={`Diagram: ${card.title}`}>
           <button
             onClick={() => setShowDiagramZoom(false)}
+            aria-label="Close diagram"
             className="absolute top-6 right-6 px-4 py-2 rounded-full bg-slate-900 border border-gray-700 text-xs font-bold text-white"
           >
             Close Diagram ✕

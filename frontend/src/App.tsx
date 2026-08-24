@@ -42,7 +42,6 @@ export const App: React.FC = () => {
     <div className="min-h-screen w-full bg-slate-950 text-gray-100 flex flex-col font-sans relative overflow-x-hidden">
       {/* Mobile Top Header Overlay */}
       <Header
-        brickCount={masteredBrickIds.length}
         openChapterDrawer={() => setIsChapterDrawerOpen(true)}
         selectedChapterCount={selectedChapterIds.length}
         selectedSubject={selectedSubject}

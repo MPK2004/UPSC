@@ -3,7 +3,7 @@ import { PYQQuestion, DiagnosticReport } from '../types';
 import { UPSC_PYQS } from '../data/upscData';
 import { evaluateQuizClient } from '../utils/evaluator';
 import { QuizReport } from './QuizReport';
-import { BookOpen, Clock, CheckCircle2, ShieldAlert, ArrowRight, ArrowLeft } from 'lucide-react';
+import { BookOpen, Clock, CheckCircle2, ArrowRight, ArrowLeft } from 'lucide-react';
 
 interface TestingArenaProps {
   selectedChapterIds: string[];
@@ -133,13 +133,16 @@ export const TestingArena: React.FC<TestingArenaProps> = ({
         </p>
 
         {/* MCQ Options */}
-        <div className="space-y-3 pt-2">
+        <div className="space-y-3 pt-2" role="radiogroup" aria-label="Answer options">
           {currentQ.options.map((opt, optIdx) => {
             const isSelected = userAnswers[currentQ.id] === optIdx;
             return (
               <button
                 key={optIdx}
                 onClick={() => handleSelectOption(currentQ.id, optIdx)}
+                role="radio"
+                aria-checked={isSelected}
+                aria-label={`Option ${String.fromCharCode(65 + optIdx)}: ${opt}`}
                 className={`w-full p-4 rounded-2xl border text-left text-sm font-medium transition-all flex items-start gap-3 ${
                   isSelected
                     ? 'bg-amber-500/15 border-amber-500 text-amber-200 shadow-lg shadow-amber-500/10'
@@ -163,26 +166,29 @@ export const TestingArena: React.FC<TestingArenaProps> = ({
         <button
           onClick={() => setCurrentIndex(i => Math.max(0, i - 1))}
           disabled={currentIndex === 0}
+          aria-label="Previous question"
           className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-slate-900 border border-gray-800 text-xs font-bold text-gray-400 disabled:opacity-40 hover:text-white"
         >
-          <ArrowLeft className="w-4 h-4" /> Previous
+          <ArrowLeft className="w-4 h-4" aria-hidden="true" /> Previous
         </button>
 
         {currentIndex === questions.length - 1 ? (
           <button
             onClick={handleSubmitQuiz}
             disabled={submitting}
+            aria-label="Submit quiz"
             className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-400 text-slate-950 font-extrabold text-xs shadow-lg shadow-emerald-500/30 hover:brightness-110 transition-all"
           >
-            <CheckCircle2 className="w-4 h-4" />
+            <CheckCircle2 className="w-4 h-4" aria-hidden="true" />
             {submitting ? 'Evaluating...' : 'Submit UPSC Test'}
           </button>
         ) : (
           <button
             onClick={() => setCurrentIndex(i => Math.min(questions.length - 1, i + 1))}
+            aria-label="Next question"
             className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-sky-500 text-white text-xs font-extrabold shadow-md shadow-sky-500/30 hover:bg-sky-400 transition-all"
           >
-            Next <ArrowRight className="w-4 h-4" />
+            Next <ArrowRight className="w-4 h-4" aria-hidden="true" />
           </button>
         )}
       </div>
