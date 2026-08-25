@@ -76,7 +76,7 @@ export const ReelCard: React.FC<ReelCardProps> = ({ card, onBrickEarned }) => {
   return (
     <div className="mobile-reel-card p-5 pt-14 pb-20 max-w-md mx-auto">
       {/* Top Card Badge Overlay */}
-      <div className="flex items-center justify-between z-20">
+      <div className="flex items-center justify-between z-20 shrink-0">
         <div className="flex items-center gap-2">
           <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
             card.subject === 'Geography'
@@ -92,7 +92,7 @@ export const ReelCard: React.FC<ReelCardProps> = ({ card, onBrickEarned }) => {
       </div>
 
       {/* Main Reel Content Block */}
-      <div className="space-y-4 my-auto z-10 pr-12">
+      <div className="flex-1 min-h-0 overflow-y-auto space-y-4 z-10 pr-12 pt-4 pb-6">
         {/* Title */}
         <h2 className="text-xl font-extrabold text-white leading-tight font-heading">
           {card.title}
