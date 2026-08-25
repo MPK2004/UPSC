@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+pydantic
+requests
+python-dotenv
+PyMuPDF
+supabase
+ddgs
+pytesseract
+Pillow
