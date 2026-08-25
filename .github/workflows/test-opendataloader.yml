@@ -27,7 +27,7 @@ jobs:
           import opendataloader_pdf, json, glob
 
           opendataloader_pdf.convert(
-              input_path=['NCERT-Class-11-Geography-Part-1.pdf'],
+              input_path=['Ncert-Geography-11-1.pdf'],
               output_dir='odl_output',
               format='json,markdown',
           )
