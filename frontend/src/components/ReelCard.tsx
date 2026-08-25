@@ -91,8 +91,12 @@ export const ReelCard: React.FC<ReelCardProps> = ({ card, onBrickEarned }) => {
         </div>
       </div>
 
+      {/* Content and the floating action bar occupy the same stacked area, so the
+          action bar can stay sticky to the viewport even when content makes this
+          card taller than one screen, without reserving its own layout space. */}
+      <div className="reel-stack">
       {/* Main Reel Content Block */}
-      <div className="flex-1 min-h-0 overflow-y-auto space-y-4 z-10 pr-12 pt-4 pb-6">
+      <div className="reel-content space-y-4 z-10 pr-12 pt-4 pb-6">
         {/* Title */}
         <h2 className="text-xl font-extrabold text-white leading-tight font-heading">
           {card.title}
@@ -188,17 +192,21 @@ export const ReelCard: React.FC<ReelCardProps> = ({ card, onBrickEarned }) => {
         )}
       </div>
 
-      {/* Toggle Button for Action Bar */}
-      <button
-        onClick={() => setBarVisible(!barVisible)}
-        className="bar-toggle"
-        aria-label={barVisible ? 'Hide action buttons' : 'Show action buttons'}
-      >
-        {barVisible ? '×' : '⋯'}
-      </button>
+      {/* Sticky Action Rail (Right Side) — stays pinned near the bottom of the
+          viewport for as long as this card is on screen, even if the card's
+          content is taller than the screen. */}
+      <div className="reel-actions-shell">
+        <div className="reel-actions-sticky">
+          {/* Toggle Button for Action Bar */}
+          <button
+            onClick={() => setBarVisible(!barVisible)}
+            className="bar-toggle"
+            aria-label={barVisible ? 'Hide action buttons' : 'Show action buttons'}
+          >
+            {barVisible ? '×' : '⋯'}
+          </button>
 
-      {/* Floating Action Bar (Right Side) */}
-      <div className={`floating-action-bar ${barVisible ? '' : 'bar-hidden'}`} role="toolbar" aria-label="Card actions">
+          <div className={`floating-action-bar ${barVisible ? '' : 'bar-hidden'}`} role="toolbar" aria-label="Card actions">
         {/* 1. Master Brick Button */}
         <button
           onClick={handleMasterBrick}
@@ -273,6 +281,9 @@ export const ReelCard: React.FC<ReelCardProps> = ({ card, onBrickEarned }) => {
           {isSavedNote ? <Check className="w-5 h-5" aria-hidden="true" /> : <Bookmark className="w-5 h-5" aria-hidden="true" />}
           <span className="action-btn-label">{isSavedNote ? 'Saved' : 'Save'}</span>
         </button>
+          </div>
+        </div>
+      </div>
       </div>
 
       {/* Diagram Fullscreen Modal */}

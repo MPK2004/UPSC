@@ -55,14 +55,13 @@ h1, h2, h3, h4, .font-heading {
 
 .mobile-reel-card {
   width: 100%;
-  height: 100dvh;
+  min-height: 100dvh;
   scroll-snap-align: start;
   scroll-snap-stop: always;
   position: relative;
   display: flex;
   flex-direction: column;
   background: radial-gradient(circle at 50% 20%, rgba(15, 23, 42, 0.9) 0%, rgba(5, 8, 17, 1) 100%);
-  overflow: hidden;
 }
 
 /* Glassmorphism Panel */
@@ -81,12 +80,49 @@ h1, h2, h3, h4, .font-heading {
   border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
-/* Floating Action Bar — right side with toggle */
-.floating-action-bar {
-  position: absolute;
-  right: 0.5rem;
+/* Content and the action rail share one grid cell so the rail can float over
+   the content without pushing it, even when content makes the cell taller
+   than the screen. */
+.reel-stack {
+  position: relative;
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-rows: 1fr;
+}
+
+.reel-content {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+/* This shell spans the full (possibly tall) height of the stack so the sticky
+   rail inside it has room to stay pinned near the viewport bottom for as long
+   as this card is on screen, instead of being anchored to the card's own
+   bottom edge (which can scroll off past the fold). */
+.reel-actions-shell {
+  grid-column: 1;
+  grid-row: 1;
+  justify-self: end;
+  align-self: stretch;
+  display: flex;
+  align-items: flex-end;
+  padding-right: 0.5rem;
+  pointer-events: none;
+}
+
+.reel-actions-sticky {
+  position: sticky;
   bottom: 5rem;
   z-index: 30;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+  pointer-events: auto;
+}
+
+.floating-action-bar {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -101,9 +137,6 @@ h1, h2, h3, h4, .font-heading {
 }
 
 .bar-toggle {
-  position: absolute;
-  right: 0.5rem;
-  bottom: 5rem;
   z-index: 31;
   width: 2rem;
   height: 2rem;
