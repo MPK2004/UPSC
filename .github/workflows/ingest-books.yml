@@ -26,6 +26,16 @@ jobs:
         working-directory: backend
         run: pip install -r requirements.txt
 
+      - name: Check secrets are visible to this job
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: |
+          echo "SUPABASE_URL set: $([ -n "$SUPABASE_URL" ] && echo yes || echo NO)"
+          echo "SUPABASE_SERVICE_ROLE_KEY set: $([ -n "$SUPABASE_SERVICE_ROLE_KEY" ] && echo yes || echo NO)"
+          echo "OPENROUTER_API_KEY set: $([ -n "$OPENROUTER_API_KEY" ] && echo yes || echo NO)"
+
       - name: Run one ingestion pass
         working-directory: backend
         env:
