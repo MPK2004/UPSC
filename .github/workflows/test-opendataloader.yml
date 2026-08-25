@@ -1,0 +1,48 @@
+name: Test opendataloader-pdf extraction quality
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install opendataloader-pdf
+        run: pip install opendataloader-pdf
+
+      - name: Run against the real Geography PDF and print a sample
+        run: |
+          python -c "
+          import opendataloader_pdf, json, glob
+
+          opendataloader_pdf.convert(
+              input_path=['NCERT-Class-11-Geography-Part-1.pdf'],
+              output_dir='odl_output',
+              format='json,markdown',
+          )
+
+          md_files = glob.glob('odl_output/**/*.md', recursive=True)
+          json_files = glob.glob('odl_output/**/*.json', recursive=True)
+          print('Output files:', md_files, json_files)
+
+          if md_files:
+              text = open(md_files[0], encoding='utf-8').read()
+              print('--- MARKDOWN SAMPLE (first 2000 chars) ---')
+              print(text[:2000])
+
+          if json_files:
+              data = json.load(open(json_files[0], encoding='utf-8'))
+              print('--- JSON TOP-LEVEL KEYS ---')
+              print(list(data.keys()) if isinstance(data, dict) else type(data))
+          "
