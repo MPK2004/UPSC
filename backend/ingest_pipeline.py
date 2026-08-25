@@ -17,6 +17,7 @@ import os
 import sys
 import time
 import tempfile
+from datetime import datetime, timezone
 
 from services.supabase_client import supabase
 from services.pdf_structure import extract_top_level_chapters, extract_chapter_text
@@ -24,6 +25,11 @@ from services.web_research import research_topic
 from llm_service import generate_chapter_content, generate_book_guide, generate_json, CHAPTER_SYSTEM_PROMPT
 
 RUN_BUDGET_SECONDS = int(os.getenv("INGEST_RUN_BUDGET_SECONDS", "720"))
+# Comfortably longer than one run budget, so a book that's genuinely still
+# being worked on (possibly by an overlapping run) isn't reclaimed out from
+# under it, but a run that got killed outright (crash, GH Actions hard
+# timeout) doesn't block the queue forever either.
+STALE_PROCESSING_SECONDS = RUN_BUDGET_SECONDS * 2
 STORAGE_BUCKET = "book-uploads"
 
 _start_time = time.monotonic()
@@ -33,20 +39,39 @@ def _time_left() -> float:
     return RUN_BUDGET_SECONDS - (time.monotonic() - _start_time)
 
 
+def _now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def _seconds_since(iso_timestamp: str) -> float:
+    ts = datetime.fromisoformat(iso_timestamp.replace("Z", "+00:00"))
+    return (datetime.now(timezone.utc) - ts).total_seconds()
+
+
 def _claim_book() -> dict | None:
-    """Prefer resuming a book already in progress over starting a new one."""
+    """Prefer resuming a book already in progress over starting a new one -
+    unless it's been "processing" far longer than one run could ever take,
+    which means whatever run claimed it never got the chance to mark it
+    failed (crashed, got killed by the job timeout). That book is reclaimed
+    as if it were freshly pending rather than blocking the queue forever."""
     resuming = supabase.table("books").select("*").eq("status", "processing").order("uploaded_at").limit(1).execute()
     if resuming.data:
-        return resuming.data[0]
+        book = resuming.data[0]
+        claimed_at = book.get("claimed_at")
+        if claimed_at and _seconds_since(claimed_at) < STALE_PROCESSING_SECONDS:
+            return book
+        print(f"[ingest_pipeline] Book '{book['title']}' has been stuck in 'processing' too long — reclaiming it.")
+    else:
+        book = None
 
     pending = supabase.table("books").select("*").eq("status", "pending").order("uploaded_at").limit(1).execute()
-    if not pending.data:
+    candidate = pending.data[0] if pending.data else book
+    if not candidate:
         return None
 
-    book = pending.data[0]
-    supabase.table("books").update({"status": "processing"}).eq("id", book["id"]).execute()
-    book["status"] = "processing"
-    return book
+    supabase.table("books").update({"status": "processing", "claimed_at": _now_iso()}).eq("id", candidate["id"]).execute()
+    candidate["status"] = "processing"
+    return candidate
 
 
 def _download_pdf(storage_path: str) -> str:
@@ -152,7 +177,7 @@ def _finalize_book(book: dict, chapters: list[dict]):
     supabase.table("books").update({
         "status": "ready",
         "approach_guide": guide,
-        "processed_at": "now()",
+        "processed_at": _now_iso(),
     }).eq("id", book["id"]).execute()
 
 

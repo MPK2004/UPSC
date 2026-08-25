@@ -17,7 +17,8 @@ create table if not exists books (
   approach_guide text,
   error_message text,
   uploaded_at timestamptz not null default now(),
-  processed_at timestamptz
+  processed_at timestamptz,
+  claimed_at timestamptz
 );
 
 create table if not exists chapters (
