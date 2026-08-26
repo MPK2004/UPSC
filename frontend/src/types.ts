@@ -1,38 +1,53 @@
+export type ContentStatus = 'pending' | 'processing' | 'ready' | 'failed';
+
+export interface Book {
+  id: string;
+  title: string;
+  subject: string | null;
+  storage_path: string;
+  status: ContentStatus;
+  approach_guide: string | null;
+  error_message: string | null;
+  uploaded_at: string;
+  processed_at: string | null;
+}
+
 export interface Chapter {
   id: string;
-  subject: 'Geography' | 'Environment';
-  book: string;
-  chapter_number: number;
+  book_id: string;
+  chapter_number: number | null;
   title: string;
-  description: string;
-  total_cards: number;
-  brick_weight: number;
+  page_start: number | null;
+  page_end: number | null;
+  importance_label: 'High' | 'Medium' | 'Low' | null;
+  importance_note: string | null;
+  approach_guide: string | null;
+  status: ContentStatus;
+  error_message: string | null;
+  created_at: string;
 }
 
 export interface ByteCard {
   id: string;
   chapter_id: string;
-  subject: 'Geography' | 'Environment';
   title: string;
-  concept_type: 'Fact' | 'Mnemonic' | 'Visual Diagram' | 'Prelims Alert';
-  diagram_svg?: string;
+  concept_type: string;
   diagram_url?: string;
   bullet_points: string[];
   mnemonic?: string;
   upsc_prelims_tip?: string;
+  sort_order?: number | null;
 }
 
 export interface PYQQuestion {
   id: string;
-  subject: 'Geography' | 'Environment';
   chapter_id: string;
-  chapter_name: string;
   year: string;
   question: string;
   options: string[];
   correct_index: number;
   explanation: string;
-  difficulty: 'Easy' | 'Moderate' | 'Hard';
+  difficulty: string;
 }
 
 export interface ItemReport {

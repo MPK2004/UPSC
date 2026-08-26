@@ -1,19 +1,9 @@
-import { DiagnosticReport, ItemReport } from '../types';
-import { UPSC_PYQS } from '../data/upscData';
+import { DiagnosticReport, ItemReport, PYQQuestion } from '../types';
 
 export const evaluateQuizClient = (
-  selectedChapters: string[],
+  questions: PYQQuestion[],
   userAnswers: Record<string, number>
 ): DiagnosticReport => {
-  let questions = UPSC_PYQS;
-  if (selectedChapters.length > 0) {
-    const active = selectedChapters.slice(0, 2);
-    questions = questions.filter(q => active.includes(q.chapter_id));
-  }
-  if (questions.length === 0) {
-    questions = UPSC_PYQS.slice(0, 5);
-  }
-
   const totalQuestions = questions.length;
   let correctCount = 0;
   let wrongCount = 0;

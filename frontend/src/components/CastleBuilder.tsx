@@ -1,23 +1,38 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Castle, Award, Trophy, Sparkles } from 'lucide-react';
+import { getTotalCardCount } from '../utils/bookData';
 
 interface CastleBuilderProps {
   brickCount: number;
-  totalAvailableBricks: number;
   masteredIds: string[];
 }
 
+const MAX_RENDERED_BRICKS = 200;
+
 export const CastleBuilder: React.FC<CastleBuilderProps> = ({
-  brickCount,
-  totalAvailableBricks
+  brickCount
 }) => {
+  const [totalAvailableBricks, setTotalAvailableBricks] = useState<number>(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    getTotalCardCount().then(res => {
+      if (!cancelled) setTotalAvailableBricks(res.count);
+    });
+    return () => { cancelled = true; };
+  }, []);
+
   const percentage = Math.min(100, Math.round((brickCount / Math.max(1, totalAvailableBricks)) * 100));
 
-  // Castle levels based on bricks
+  // Castle levels based on % of all available bricks mastered, so this scales
+  // with real multi-book content instead of a fixed absolute brick count.
   let castleTitle = 'Novice Aspirant Keep';
-  if (brickCount >= 8) castleTitle = 'Imperial Citadel of UPSC 2027';
-  else if (brickCount >= 5) castleTitle = 'Fortress of Geomorphology & Ecology';
-  else if (brickCount >= 3) castleTitle = 'Bastion of NCERT Knowledge';
+  if (percentage >= 90) castleTitle = 'Imperial Citadel of UPSC 2027';
+  else if (percentage >= 60) castleTitle = 'Fortress of Geomorphology & Ecology';
+  else if (percentage >= 30) castleTitle = 'Bastion of NCERT Knowledge';
+
+  const renderedBrickCount = Math.min(totalAvailableBricks, MAX_RENDERED_BRICKS);
+  const hiddenBrickCount = totalAvailableBricks - renderedBrickCount;
 
   return (
     <div className="max-w-2xl mx-auto p-4 space-y-6">
@@ -59,7 +74,7 @@ export const CastleBuilder: React.FC<CastleBuilderProps> = ({
         </h3>
 
         <div className="castle-grid">
-          {Array.from({ length: totalAvailableBricks }).map((_, idx) => {
+          {Array.from({ length: renderedBrickCount }).map((_, idx) => {
             const isMastered = idx < brickCount;
             return (
               <div
@@ -73,6 +88,14 @@ export const CastleBuilder: React.FC<CastleBuilderProps> = ({
               </div>
             );
           })}
+          {hiddenBrickCount > 0 && (
+            <div
+              className="brick flex items-center justify-center text-[10px] font-bold text-gray-500"
+              title={`${hiddenBrickCount} more bricks`}
+            >
+              +{hiddenBrickCount}
+            </div>
+          )}
         </div>
       </div>
 

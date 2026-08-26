@@ -1,16 +1,16 @@
 import React, { useState } from 'react';
-import { ByteCard } from '../types';
+import { ByteCard, PYQQuestion } from '../types';
 import { addMasteredBrick, saveNote, getMasteredBricks } from '../utils/supabaseClient';
-import { UPSC_PYQS } from '../data/upscData';
 import { Volume2, VolumeX, Castle, Bookmark, AlertCircle, Lightbulb, ZoomIn, Check, HelpCircle } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
 interface ReelCardProps {
   card: ByteCard;
   onBrickEarned: () => void;
+  relatedPyq?: PYQQuestion;
 }
 
-export const ReelCard: React.FC<ReelCardProps> = ({ card, onBrickEarned }) => {
+export const ReelCard: React.FC<ReelCardProps> = ({ card, onBrickEarned, relatedPyq }) => {
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [showMnemonic, setShowMnemonic] = useState(false);
   const [showTip, setShowTip] = useState(false);
@@ -23,8 +23,7 @@ export const ReelCard: React.FC<ReelCardProps> = ({ card, onBrickEarned }) => {
   const masteredIds = getMasteredBricks();
   const isMastered = masteredIds.includes(card.id);
 
-  // Find a matching PYQ for this card's chapter
-  const matchingPYQ = UPSC_PYQS.find(q => q.chapter_id === card.chapter_id);
+  const matchingPYQ = relatedPyq;
   const miniQuizAnswered = miniQuizAnswer !== null;
   const miniQuizCorrect = miniQuizAnswer === matchingPYQ?.correct_index;
 
@@ -66,7 +65,7 @@ export const ReelCard: React.FC<ReelCardProps> = ({ card, onBrickEarned }) => {
   const handleSaveNote = () => {
     saveNote({
       title: card.title,
-      subject: card.subject,
+      subject: '',
       content: card.bullet_points.join('\n') + (card.mnemonic ? `\n\n${card.mnemonic}` : '')
     });
     setIsSavedNote(true);
@@ -78,13 +77,6 @@ export const ReelCard: React.FC<ReelCardProps> = ({ card, onBrickEarned }) => {
       {/* Top Card Badge Overlay */}
       <div className="flex items-center justify-between z-20 shrink-0">
         <div className="flex items-center gap-2">
-          <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
-            card.subject === 'Geography'
-              ? 'bg-sky-500/20 text-sky-300 border border-sky-500/40'
-              : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
-          }`}>
-            {card.subject}
-          </span>
           <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40">
             {card.concept_type}
           </span>

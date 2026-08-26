@@ -1,17 +1,7 @@
 import React from 'react';
-import { Castle, Filter } from 'lucide-react';
+import { Castle } from 'lucide-react';
 
-interface HeaderProps {
-  openChapterDrawer: () => void;
-  selectedChapterCount: number;
-  selectedSubject: string;
-}
-
-export const Header: React.FC<HeaderProps> = ({
-  openChapterDrawer,
-  selectedChapterCount,
-  selectedSubject
-}) => {
+export const Header: React.FC = () => {
   // Days to UPSC Prelims 2027 (~May 23, 2027)
   const targetDate = new Date('2027-05-23');
   const now = new Date();
@@ -33,19 +23,6 @@ export const Header: React.FC<HeaderProps> = ({
           </span>
         </div>
       </div>
-
-      {/* Chapter Focus Filter Button Sheet Trigger */}
-      <button
-        onClick={openChapterDrawer}
-        aria-label={`Chapter filter: ${selectedChapterCount > 0 ? `${selectedChapterCount} chapters selected` : selectedSubject}`}
-        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-900 border border-gray-700 text-xs font-bold text-gray-200 hover:border-amber-500/50 transition-all shadow-md active:scale-95"
-      >
-        <Filter className="w-3.5 h-3.5 text-amber-400" aria-hidden="true" />
-        <span>{selectedChapterCount > 0 ? `${selectedChapterCount} Chapters` : selectedSubject}</span>
-        {selectedChapterCount > 0 && (
-          <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" aria-hidden="true" />
-        )}
-      </button>
     </header>
   );
 };

@@ -1,22 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { PYQQuestion, DiagnosticReport } from '../types';
-import { UPSC_PYQS } from '../data/upscData';
 import { evaluateQuizClient } from '../utils/evaluator';
 import { QuizReport } from './QuizReport';
 import { BookOpen, Clock, CheckCircle2, ArrowRight, ArrowLeft } from 'lucide-react';
 
 interface TestingArenaProps {
-  selectedChapterIds: string[];
-  selectedSubject: string;
+  questions: PYQQuestion[];
+  chapterTitle: string;
   onBrickUnlocked: () => void;
 }
 
 export const TestingArena: React.FC<TestingArenaProps> = ({
-  selectedChapterIds,
-  selectedSubject,
+  questions,
+  chapterTitle,
   onBrickUnlocked
 }) => {
-  const [questions, setQuestions] = useState<PYQQuestion[]>([]);
   const [currentIndex, setCurrentIndex] = useState<number>(0);
   const [userAnswers, setUserAnswers] = useState<Record<string, number>>({});
   const [report, setReport] = useState<DiagnosticReport | null>(null);
@@ -24,29 +22,16 @@ export const TestingArena: React.FC<TestingArenaProps> = ({
   const [timeLeft, setTimeLeft] = useState<number>(600); // 10 mins
 
   useEffect(() => {
-    fetchQuestions();
-  }, [selectedChapterIds, selectedSubject]);
-
-  useEffect(() => {
     if (timeLeft <= 0) return;
     const timer = setInterval(() => setTimeLeft(t => t - 1), 1000);
     return () => clearInterval(timer);
   }, [timeLeft]);
 
-  const fetchQuestions = () => {
+  const handleRetake = () => {
     setReport(null);
     setUserAnswers({});
-    let qList = UPSC_PYQS;
-
-    if (selectedChapterIds.length > 0) {
-      const active = selectedChapterIds.slice(0, 2);
-      qList = qList.filter(q => active.includes(q.chapter_id));
-    } else if (selectedSubject && selectedSubject.toLowerCase() !== 'combined') {
-      qList = qList.filter(q => q.subject.toLowerCase() === selectedSubject.toLowerCase());
-    }
-
-    setQuestions(qList);
     setCurrentIndex(0);
+    setTimeLeft(600);
   };
 
   const handleSelectOption = (qId: string, optionIdx: number) => {
@@ -59,7 +44,7 @@ export const TestingArena: React.FC<TestingArenaProps> = ({
   const handleSubmitQuiz = () => {
     setSubmitting(true);
     setTimeout(() => {
-      const diagReport = evaluateQuizClient(selectedChapterIds, userAnswers);
+      const diagReport = evaluateQuizClient(questions, userAnswers);
       setReport(diagReport);
       if (diagReport.mastery_achieved) {
         onBrickUnlocked();
@@ -75,7 +60,7 @@ export const TestingArena: React.FC<TestingArenaProps> = ({
     return (
       <QuizReport
         report={report}
-        onRetake={fetchQuestions}
+        onRetake={handleRetake}
         onContinue={() => setReport(null)}
       />
     );
@@ -87,7 +72,7 @@ export const TestingArena: React.FC<TestingArenaProps> = ({
         <BookOpen className="w-12 h-12 text-gray-500" />
         <h3 className="text-lg font-bold text-white">No Questions Available</h3>
         <p className="text-xs text-gray-400">
-          Try selecting different chapters or switching subject mode.
+          This chapter has no PYQs yet.
         </p>
       </div>
     );
@@ -101,10 +86,10 @@ export const TestingArena: React.FC<TestingArenaProps> = ({
       <div className="glass-panel p-4 flex items-center justify-between bg-slate-950 border-gray-800">
         <div>
           <span className="text-xs font-extrabold text-amber-400 block uppercase tracking-wider">
-            UPSC Prelims PYQ Arena ({currentQ.subject})
+            UPSC Prelims PYQ Arena
           </span>
           <span className="text-xs text-gray-400">
-            Question {currentIndex + 1} of {questions.length} • Chapter: {currentQ.chapter_name}
+            Question {currentIndex + 1} of {questions.length} • Chapter: {chapterTitle}
           </span>
         </div>
 
