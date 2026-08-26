@@ -22,10 +22,29 @@ OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 
 FREE_MODELS = [
     "nvidia/nemotron-3.5-lightning:free",
-    "thinkingmachines/inkling:free",
     "poolside/laguna-s-2.1:free",
     "dots-studio/dots-3-note-preview:free",
 ]
+# "thinkingmachines/inkling:free" was tried and dropped: it 403s unconditionally
+# for this account (a permissions/moderation block per OpenRouter, unrelated to
+# the shared 50-req/day free-tier rate limit), so it never succeeds and only
+# wastes retry attempts.
+
+# NVIDIA NIM (integrate.api.nvidia.com) — OpenAI-compatible free API, a
+# separate account/quota from OpenRouter's shared 50-req/day free-tier cap.
+# Tried first in generate_json(); OpenRouter is the fallback once this is
+# exhausted or unset.
+NVIDIA_API_KEY = os.getenv("NVIDIA_API_KEY", "")
+NVIDIA_URL = "https://integrate.api.nvidia.com/v1/chat/completions"
+NVIDIA_MODELS = [
+    "openai/gpt-oss-20b",
+    "openai/gpt-oss-120b",
+]
+# "deepseek-ai/deepseek-v4-flash-0731" was tried and dropped: it 404s with
+# "Function not found for account" for this NVIDIA account even though it's
+# listed in /v1/models — that catalog is global, not account-scoped, so
+# listing there doesn't mean it's actually provisioned. gpt-oss-20b/120b were
+# confirmed working live against this account.
 
 def generate_with_openrouter(prompt: str, system_prompt: str = "You are a top UPSC Civil Services Prelims faculty expert specializing in Geography and Environment.") -> str:
     if not OPENROUTER_API_KEY:
@@ -87,6 +106,40 @@ Format as a valid JSON array with objects containing:
     return []
 
 
+def _provider_configs() -> List[Dict[str, Any]]:
+    """Providers tried in order by generate_json(). NVIDIA NIM first (its own
+    account/quota, separate from OpenRouter's shared free-tier pool), then
+    OpenRouter's free models as fallback. A provider is skipped entirely if
+    its API key isn't set."""
+    configs = []
+    if NVIDIA_API_KEY:
+        configs.append({
+            "name": "NVIDIA NIM",
+            "url": NVIDIA_URL,
+            "headers": {"Authorization": f"Bearer {NVIDIA_API_KEY}", "Content-Type": "application/json"},
+            "models": NVIDIA_MODELS,
+            "max_tokens": 8192,
+            "extra": {},
+            "timeout": 120,
+        })
+    if OPENROUTER_API_KEY:
+        configs.append({
+            "name": "OpenRouter",
+            "url": OPENROUTER_URL,
+            "headers": {
+                "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+                "Content-Type": "application/json",
+                "HTTP-Referer": "https://upscreelcastle.local",
+                "X-Title": "UPSC ReelCastle",
+            },
+            "models": FREE_MODELS,
+            "max_tokens": 3000,
+            "extra": {},
+            "timeout": 60,
+        })
+    return configs
+
+
 def generate_json(
     prompt: str,
     system_prompt: str,
@@ -94,49 +147,46 @@ def generate_json(
     backoff_seconds: float = 5.0,
 ) -> Optional[Dict[str, Any]]:
     """
-    Tries every free model, retrying each with backoff, until one returns
-    parseable JSON. Free-tier flakiness (rate limits, truncated output,
-    prose wrapped around the JSON) is expected — this is built to be patient,
-    not fast, since the pipeline runs unattended overnight.
+    Tries every configured provider's models in order, retrying each with
+    backoff, until one returns parseable JSON. Free-tier flakiness (rate
+    limits, truncated output, prose wrapped around the JSON) is expected —
+    this is built to be patient, not fast, since the pipeline runs
+    unattended on a schedule.
     """
-    if not OPENROUTER_API_KEY:
-        print("[OpenRouter] Warning: OPENROUTER_API_KEY not set in environment.")
+    providers = _provider_configs()
+    if not providers:
+        print("[llm_service] Warning: no LLM provider API key set (NVIDIA_API_KEY / OPENROUTER_API_KEY).")
         return None
 
-    headers = {
-        "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-        "Content-Type": "application/json",
-        "HTTP-Referer": "https://upscreelcastle.local",
-        "X-Title": "UPSC ReelCastle",
-    }
+    for provider in providers:
+        for model in provider["models"]:
+            for attempt in range(1, max_attempts_per_model + 1):
+                payload = {
+                    "model": model,
+                    "messages": [
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": prompt},
+                    ],
+                    "temperature": 0.3,
+                    "max_tokens": provider["max_tokens"],
+                    **provider["extra"],
+                }
+                try:
+                    res = requests.post(provider["url"], headers=provider["headers"], json=payload, timeout=provider["timeout"])
+                    if res.status_code == 429:
+                        print(f"[{provider['name']}] {model} rate-limited, backing off.")
+                        time.sleep(backoff_seconds * attempt)
+                        continue
+                    res.raise_for_status()
+                    content = res.json()["choices"][0]["message"]["content"]
+                    parsed = _extract_json(content)
+                    if parsed is not None:
+                        return parsed
+                    print(f"[{provider['name']}] {model} attempt {attempt}: could not parse JSON from response.")
+                except Exception as e:
+                    print(f"[{provider['name']} API Error] {model} attempt {attempt}: {e}")
 
-    for model in FREE_MODELS:
-        for attempt in range(1, max_attempts_per_model + 1):
-            payload = {
-                "model": model,
-                "messages": [
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": prompt},
-                ],
-                "temperature": 0.3,
-                "max_tokens": 3000,
-            }
-            try:
-                res = requests.post(OPENROUTER_URL, headers=headers, json=payload, timeout=60)
-                if res.status_code == 429:
-                    print(f"[OpenRouter] {model} rate-limited, backing off.")
-                    time.sleep(backoff_seconds * attempt)
-                    continue
-                res.raise_for_status()
-                content = res.json()["choices"][0]["message"]["content"]
-                parsed = _extract_json(content)
-                if parsed is not None:
-                    return parsed
-                print(f"[OpenRouter] {model} attempt {attempt}: could not parse JSON from response.")
-            except Exception as e:
-                print(f"[OpenRouter API Error] {model} attempt {attempt}: {e}")
-
-            time.sleep(backoff_seconds)
+                time.sleep(backoff_seconds)
 
     return None
 

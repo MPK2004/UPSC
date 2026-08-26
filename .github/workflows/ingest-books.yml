@@ -31,10 +31,12 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
         run: |
           echo "SUPABASE_URL set: $([ -n "$SUPABASE_URL" ] && echo yes || echo NO)"
           echo "SUPABASE_SERVICE_ROLE_KEY set: $([ -n "$SUPABASE_SERVICE_ROLE_KEY" ] && echo yes || echo NO)"
           echo "OPENROUTER_API_KEY set: $([ -n "$OPENROUTER_API_KEY" ] && echo yes || echo NO)"
+          echo "NVIDIA_API_KEY set: $([ -n "$NVIDIA_API_KEY" ] && echo yes || echo NO)"
 
       - name: Run one ingestion pass
         working-directory: backend
@@ -42,5 +44,6 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
           INGEST_RUN_BUDGET_SECONDS: "720"
         run: python ingest_pipeline.py
