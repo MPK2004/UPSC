@@ -1,10 +1,8 @@
 """
-OpenRouter Free LLM Service
-
-Used both by the live API (app.py, legacy) and by the ingestion pipeline's
-per-chapter agentic generation step. Free-tier models are rate-limited and
-occasionally return malformed output, which is fine here — the pipeline runs
-unattended overnight, so generate_json() retries across models with backoff
+Free LLM service backing the ingestion pipeline's per-chapter agentic
+generation step. Free-tier models are rate-limited and occasionally return
+malformed output, which is fine here — the pipeline runs unattended on a
+schedule, so generate_json() retries across providers/models with backoff
 rather than needing to succeed on the first try.
 """
 
@@ -45,65 +43,6 @@ NVIDIA_MODELS = [
 # listed in /v1/models — that catalog is global, not account-scoped, so
 # listing there doesn't mean it's actually provisioned. gpt-oss-20b/120b were
 # confirmed working live against this account.
-
-def generate_with_openrouter(prompt: str, system_prompt: str = "You are a top UPSC Civil Services Prelims faculty expert specializing in Geography and Environment.") -> str:
-    if not OPENROUTER_API_KEY:
-        print("[OpenRouter] Warning: OPENROUTER_API_KEY not set in environment.")
-        return ""
-
-    headers = {
-        "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-        "Content-Type": "application/json",
-        "HTTP-Referer": "https://upscreelcastle.local",
-        "X-Title": "UPSC ReelCastle"
-    }
-
-    for model in FREE_MODELS:
-        payload = {
-            "model": model,
-            "messages": [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": prompt}
-            ],
-            "temperature": 0.3,
-            "max_tokens": 800
-        }
-        try:
-            res = requests.post(OPENROUTER_URL, headers=headers, json=payload, timeout=12)
-            if res.status_code == 200:
-                data = res.json()
-                content = data["choices"][0]["message"]["content"]
-                return content
-        except Exception as e:
-            print(f"[OpenRouter API Error] {model}: {e}")
-            continue
-
-    return ""
-
-
-def generate_byte_reel_cards(chapter_title: str, text_content: str) -> List[Dict[str, Any]]:
-    prompt = f"""
-Convert the following UPSC study material into 4 byte-sized reel cards.
-Chapter: {chapter_title}
-Material: {text_content[:1500]}
-
-Format as a valid JSON array with objects containing:
-- title: concise heading
-- concept_type: "Fact" | "Mnemonic" | "Visual Diagram" | "Prelims Alert"
-- bullet_points: 3 crisp bullet points for high-speed scrolling
-- mnemonic: catchy memory trick if applicable
-"""
-    result = generate_with_openrouter(prompt)
-    if result:
-        try:
-            start = result.find("[")
-            end = result.rfind("]") + 1
-            if start != -1 and end != -1:
-                return json.loads(result[start:end])
-        except Exception:
-            pass
-
-    return []
 
 
 def _provider_configs() -> List[Dict[str, Any]]:
