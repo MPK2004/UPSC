@@ -11,7 +11,8 @@ Sources, all free and requiring no API key:
       Economy). Mirrors the "official/primary sources outrank generic
       analysis" principle of a real UPSC source hierarchy.
     - "upsc_analysis": well-known UPSC exam-analysis / topper-strategy sites,
-      used for weightage and topper-opinion angles regardless of subject.
+      queried together (weightage + topper-opinion in one query) regardless
+      of subject, to keep total DDG request volume low.
 
 Every finding keeps its real title/url so the LLM can cite it by number and
 the pipeline can persist real, resolvable citations — never a source the LLM
@@ -24,10 +25,23 @@ nothing is NOT loosened to the open web — that would silently reintroduce
 random-website citations, which is the whole point of the allowlist.
 """
 
+import os
 import time
 from urllib.parse import urlparse
 
 import requests
+
+# DuckDuckGo's scraping-based search (via `ddgs`) silently rate-limits/blocks
+# shared CI datacenter IPs (GitHub Actions runners included) rather than
+# raising an error — it just returns zero results, indistinguishable from a
+# genuine "nothing found". Confirmed by re-running the exact same query
+# strings that came back empty in CI from a non-CI IP and getting real
+# results instantly. There's no fix for that on our side, but the pipeline
+# runs unattended on a schedule with no urgency — so DDG calls are spaced out
+# generously rather than fired in a quick burst, trading run throughput for a
+# better chance of not looking like a bot. Leftover chapters just pick up on
+# the next scheduled run.
+DDG_REQUEST_DELAY_SECONDS = float(os.getenv("DDG_REQUEST_DELAY_SECONDS", "20"))
 
 WIKIPEDIA_SUMMARY_URL = "https://en.wikipedia.org/api/rest_v1/page/summary/{title}"
 WIKIPEDIA_SEARCH_URL = "https://en.wikipedia.org/w/api.php"
@@ -181,22 +195,19 @@ def research_topic(topic: str, subject: str = "") -> list[dict]:
     if wiki:
         findings.append(wiki)
 
-    time.sleep(1)  # be polite between free lookups
-
+    # DDG calls are the ones that get silently throttled on CI — space them
+    # out generously (see DDG_REQUEST_DELAY_SECONDS above), and keep to at
+    # most 2 of them per chapter (merged into one combined tier-2 query
+    # below) to minimize how much traffic this run adds.
     official_domains = _official_domains_for(subject)
     if official_domains:
+        time.sleep(DDG_REQUEST_DELAY_SECONDS)
         findings += _duckduckgo_search(topic, official_domains, "official")
-        time.sleep(1)
 
+    time.sleep(DDG_REQUEST_DELAY_SECONDS)
     findings += _duckduckgo_search(
-        f"{topic} UPSC prelims weightage previous year questions",
-        REPUTED_UPSC_SITES, "upsc_analysis",
-    )
-    time.sleep(1)
-
-    findings += _duckduckgo_search(
-        f"{topic} UPSC topper strategy AIR rank preparation notes",
-        REPUTED_UPSC_SITES, "upsc_analysis",
+        f"{topic} UPSC prelims weightage topper strategy previous year questions",
+        REPUTED_UPSC_SITES, "upsc_analysis", max_results=5,
     )
 
     # Dedupe by URL (first occurrence wins), cap, assign sequential ids.
