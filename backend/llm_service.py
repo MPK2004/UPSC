@@ -21,9 +21,10 @@ OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 
 FREE_MODELS = [
-    "google/gemini-2.0-flash-exp:free",
-    "meta-llama/llama-3.3-70b-instruct:free",
-    "mistralai/mistral-7b-instruct:free"
+    "openrouter/free",
+    "minimax/minimax-m3:free",
+    "minimax/minimax-m2.7:free",
+    "nvidia/nemotron-3.5-lightning:free",
 ]
 
 def generate_with_openrouter(prompt: str, system_prompt: str = "You are a top UPSC Civil Services Prelims faculty expert specializing in Geography and Environment.") -> str:
@@ -142,6 +143,10 @@ def generate_json(
 
 def _extract_json(text: str) -> Optional[Dict[str, Any]]:
     text = text.strip()
+    # Strip reasoning tags if present
+    if "<think>" in text and "</think>" in text:
+        text = text.split("</think>")[-1].strip()
+
     # Strip common markdown code-fence wrapping.
     if text.startswith("```"):
         text = text.split("```")[1]

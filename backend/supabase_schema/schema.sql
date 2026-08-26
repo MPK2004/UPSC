@@ -21,6 +21,9 @@ create table if not exists books (
   claimed_at timestamptz
 );
 
+-- Idempotent column addition for existing databases
+alter table books add column if not exists claimed_at timestamptz;
+
 create table if not exists chapters (
   id uuid primary key default gen_random_uuid(),
   book_id uuid not null references books(id) on delete cascade,

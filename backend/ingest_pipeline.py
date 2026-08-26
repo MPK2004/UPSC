@@ -69,7 +69,13 @@ def _claim_book() -> dict | None:
     if not candidate:
         return None
 
-    supabase.table("books").update({"status": "processing", "claimed_at": _now_iso()}).eq("id", candidate["id"]).execute()
+    try:
+        supabase.table("books").update({"status": "processing", "claimed_at": _now_iso()}).eq("id", candidate["id"]).execute()
+    except Exception as e:
+        # Fallback if claimed_at column does not exist yet on books table in Supabase
+        print(f"[ingest_pipeline] Note: claimed_at update failed ({e}), updating status only.")
+        supabase.table("books").update({"status": "processing"}).eq("id", candidate["id"]).execute()
+
     candidate["status"] = "processing"
     return candidate
 
