@@ -21,6 +21,8 @@ OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 
 FREE_MODELS = [
+    "google/gemma-4-31b-it:free",
+    "thinkingmachines/inkling:free",
     "openrouter/free",
     "minimax/minimax-m3:free",
     "minimax/minimax-m2.7:free",
