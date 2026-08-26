@@ -21,12 +21,10 @@ OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 
 FREE_MODELS = [
-    "google/gemma-4-31b-it:free",
-    "thinkingmachines/inkling:free",
-    "openrouter/free",
-    "minimax/minimax-m3:free",
-    "minimax/minimax-m2.7:free",
     "nvidia/nemotron-3.5-lightning:free",
+    "thinkingmachines/inkling:free",
+    "poolside/laguna-s-2.1:free",
+    "dots-studio/dots-3-note-preview:free",
 ]
 
 def generate_with_openrouter(prompt: str, system_prompt: str = "You are a top UPSC Civil Services Prelims faculty expert specializing in Geography and Environment.") -> str:

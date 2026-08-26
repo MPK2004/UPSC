@@ -210,14 +210,27 @@ def run_once():
                 _process_chapter(book, chapter, pdf_path)
             except Exception as e:
                 print(f"[ingest_pipeline]   FAILED chapter '{chapter['title']}': {e}")
-                supabase.table("chapters").update({"status": "failed"}).eq("id", chapter["id"]).execute()
+                try:
+                    supabase.table("chapters").update({"status": "failed", "error_message": str(e)}).eq("id", chapter["id"]).execute()
+                except Exception:
+                    # Fallback if error_message column does not exist yet on chapters table in Supabase
+                    supabase.table("chapters").update({"status": "failed"}).eq("id", chapter["id"]).execute()
 
         still_pending = supabase.table("chapters").select("id").eq("book_id", book["id"]).in_("status", ["pending", "processing"]).execute()
         if still_pending.data:
             print("[ingest_pipeline] Chapters still outstanding; will resume next scheduled run.")
             return
 
-        _finalize_book(book, chapters)
+        fresh = supabase.table("chapters").select("*").eq("book_id", book["id"]).execute().data
+        if not any(c["status"] == "ready" for c in fresh):
+            supabase.table("books").update({
+                "status": "failed",
+                "error_message": "All chapters failed to process; see chapters.error_message for details.",
+            }).eq("id", book["id"]).execute()
+            print(f"[ingest_pipeline] Book '{book['title']}' had no successful chapters; marked failed.")
+            return
+
+        _finalize_book(book, fresh)
         print(f"[ingest_pipeline] Book '{book['title']}' marked ready.")
 
     except Exception as e:

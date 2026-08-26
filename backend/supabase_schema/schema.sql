@@ -36,8 +36,12 @@ create table if not exists chapters (
   approach_guide text,
   status text not null default 'pending'
     check (status in ('pending', 'processing', 'ready', 'failed')),
+  error_message text,
   created_at timestamptz not null default now()
 );
+
+-- Idempotent column addition for existing databases
+alter table chapters add column if not exists error_message text;
 
 create table if not exists cards (
   id uuid primary key default gen_random_uuid(),
