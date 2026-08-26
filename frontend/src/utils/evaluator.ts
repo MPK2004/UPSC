@@ -26,6 +26,7 @@ export const evaluateQuizClient = (
           correct_choice: q.correct_index,
           correct_option_text: q.options[q.correct_index],
           explanation: q.explanation,
+          sources: q.sources,
           status: 'Correct'
         });
       } else {
@@ -38,6 +39,7 @@ export const evaluateQuizClient = (
           correct_choice: q.correct_index,
           correct_option_text: q.options[q.correct_index],
           explanation: q.explanation,
+          sources: q.sources,
           status: 'Wrong'
         });
       }
@@ -50,6 +52,7 @@ export const evaluateQuizClient = (
         correct_choice: q.correct_index,
         correct_option_text: q.options[q.correct_index],
         explanation: q.explanation,
+        sources: q.sources,
         status: 'Unattempted'
       });
     }

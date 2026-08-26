@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Chapter } from '../types';
 import { getChapter } from '../utils/bookData';
-import { ArrowLeft, Loader2, AlertTriangle, Film, BookOpen } from 'lucide-react';
+import { ArrowLeft, Loader2, AlertTriangle, Film, BookOpen, Link2, ShieldCheck } from 'lucide-react';
 
 interface ChapterDetailProps {
   chapterId: string;
@@ -110,6 +110,32 @@ export const ChapterDetail: React.FC<ChapterDetailProps> = ({ chapterId, onBack,
         <div className="glass-panel p-4 bg-slate-900/60 border-gray-800 space-y-1.5">
           <h2 className="text-xs font-extrabold text-sky-400 uppercase tracking-wider">How to approach it</h2>
           <p className="text-sm text-gray-200 leading-relaxed whitespace-pre-line">{chapter.approach_guide}</p>
+        </div>
+      )}
+
+      {chapter.sources && chapter.sources.length > 0 && (
+        <div className="glass-panel p-4 bg-slate-900/60 border-gray-800 space-y-2">
+          <h2 className="text-xs font-extrabold text-gray-400 uppercase tracking-wider">Sources</h2>
+          <ul className="space-y-1.5">
+            {chapter.sources.map((s, i) => (
+              <li key={i}>
+                <a
+                  href={s.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-start gap-1.5 text-xs text-sky-300 hover:text-sky-200 leading-snug"
+                >
+                  <Link2 className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+                  <span className="underline underline-offset-2">{s.title}</span>
+                  {s.tier === 'official' && (
+                    <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-black uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex-shrink-0">
+                      <ShieldCheck className="w-2.5 h-2.5" /> Official
+                    </span>
+                  )}
+                </a>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
 

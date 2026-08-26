@@ -21,8 +21,8 @@ from datetime import datetime, timezone
 
 from services.supabase_client import supabase
 from services.pdf_structure import extract_top_level_chapters, extract_chapter_text
-from services.web_research import research_topic
-from llm_service import generate_chapter_content, generate_book_guide, generate_json, CHAPTER_SYSTEM_PROMPT
+from services.web_research import research_topic, format_research_for_prompt
+from llm_service import generate_chapter_content, generate_book_guide, recalibrate_importance
 
 RUN_BUDGET_SECONDS = int(os.getenv("INGEST_RUN_BUDGET_SECONDS", "720"))
 # Comfortably longer than one run budget, so a book that's genuinely still
@@ -112,6 +112,27 @@ def _ensure_chapters_seeded(book: dict, pdf_path: str) -> list[dict]:
     return inserted.data
 
 
+def _resolve_sources(ids, findings: list[dict]) -> list[dict]:
+    """Map LLM-cited finding numbers back to the real {title, url, tier} we
+    actually fetched — dedupes and silently drops any number outside the
+    known range (a hallucinated citation) rather than trusting the LLM."""
+    by_id = {f["id"]: {"title": f["title"], "url": f["url"], "tier": f["tier"]} for f in findings}
+    return [by_id[i] for i in dict.fromkeys(ids or []) if i in by_id]
+
+
+def _insert_with_sources_fallback(table: str, rows: list[dict]):
+    """Insert rows that include a `sources` key, falling back to inserting
+    without it if the column doesn't exist yet on this Supabase project
+    (schema migration not yet applied) — same pattern already used elsewhere
+    in this file for claimed_at/error_message."""
+    try:
+        supabase.table(table).insert(rows).execute()
+    except Exception as e:
+        print(f"[ingest_pipeline] Note: '{table}' insert with sources failed ({e}), retrying without sources.")
+        stripped = [{k: v for k, v in row.items() if k != "sources"} for row in rows]
+        supabase.table(table).insert(stripped).execute()
+
+
 def _process_chapter(book: dict, chapter: dict, pdf_path: str):
     supabase.table("chapters").update({"status": "processing"}).eq("id", chapter["id"]).execute()
 
@@ -119,13 +140,15 @@ def _process_chapter(book: dict, chapter: dict, pdf_path: str):
     if not chapter_text.strip():
         raise RuntimeError(f"No extractable text for chapter '{chapter['title']}' (pages {chapter['page_start']}-{chapter['page_end']}).")
 
-    research_context = research_topic(chapter["title"])
+    subject = book.get("subject") or book["title"]
+    findings = research_topic(chapter["title"], subject=subject)
+    research_text = format_research_for_prompt(findings)
 
     result = generate_chapter_content(
         chapter_title=chapter["title"],
         chapter_text=chapter_text,
-        research_context=research_context,
-        subject=book.get("subject") or book["title"],
+        research_text=research_text,
+        subject=subject,
     )
     if not result:
         raise RuntimeError("LLM generation failed for this chapter after all retries.")
@@ -134,7 +157,7 @@ def _process_chapter(book: dict, chapter: dict, pdf_path: str):
     pyqs = result.get("pyqs", [])
 
     if cards:
-        supabase.table("cards").insert([
+        _insert_with_sources_fallback("cards", [
             {
                 "chapter_id": chapter["id"],
                 "title": c.get("title", ""),
@@ -143,12 +166,13 @@ def _process_chapter(book: dict, chapter: dict, pdf_path: str):
                 "mnemonic": c.get("mnemonic", ""),
                 "upsc_prelims_tip": c.get("upsc_prelims_tip", ""),
                 "sort_order": i,
+                "sources": _resolve_sources(c.get("sources"), findings),
             }
             for i, c in enumerate(cards)
-        ]).execute()
+        ])
 
     if pyqs:
-        supabase.table("pyqs").insert([
+        _insert_with_sources_fallback("pyqs", [
             {
                 "chapter_id": chapter["id"],
                 "year": q.get("year", "Practice"),
@@ -157,16 +181,65 @@ def _process_chapter(book: dict, chapter: dict, pdf_path: str):
                 "correct_index": q.get("correct_index", 0),
                 "explanation": q.get("explanation", ""),
                 "difficulty": q.get("difficulty", "Moderate"),
+                "sources": _resolve_sources(q.get("sources"), findings),
             }
             for q in pyqs
-        ]).execute()
+        ])
 
-    supabase.table("chapters").update({
-        "status": "ready",
-        "importance_label": result.get("importance_label"),
-        "importance_note": result.get("importance_note"),
-        "approach_guide": result.get("approach_guide"),
-    }).eq("id", chapter["id"]).execute()
+    chapter_sources = _resolve_sources(
+        list(result.get("importance_sources") or []) + list(result.get("approach_sources") or []),
+        findings,
+    )
+    try:
+        supabase.table("chapters").update({
+            "status": "ready",
+            "importance_label": result.get("importance_label"),
+            "importance_note": result.get("importance_note"),
+            "approach_guide": result.get("approach_guide"),
+            "sources": chapter_sources,
+        }).eq("id", chapter["id"]).execute()
+    except Exception as e:
+        # Fallback if the sources column does not exist yet on chapters table in Supabase
+        print(f"[ingest_pipeline] Note: chapters update with sources failed ({e}), updating without sources.")
+        supabase.table("chapters").update({
+            "status": "ready",
+            "importance_label": result.get("importance_label"),
+            "importance_note": result.get("importance_note"),
+            "approach_guide": result.get("approach_guide"),
+        }).eq("id", chapter["id"]).execute()
+
+
+def _recalibrate_book_importance(ready: list[dict]) -> list[dict]:
+    """Runs the book-level importance recalibration pass (see
+    llm_service.recalibrate_importance) and applies any adjustments back onto
+    the chapters table, returning `ready` with the corrected labels/notes so
+    generate_book_guide reflects them. Best-effort — on failure, leaves the
+    existing per-chapter labels untouched."""
+    calibration_input = [
+        {
+            "id": c["id"],
+            "title": c["title"],
+            "importance_note": c.get("importance_note"),
+            "source_count": len(c.get("sources") or []),
+        }
+        for c in ready
+    ]
+    adjustments = recalibrate_importance(calibration_input)
+    if not adjustments:
+        return ready
+
+    updated = []
+    for c in ready:
+        adjustment = adjustments.get(c["id"])
+        if adjustment:
+            supabase.table("chapters").update({
+                "importance_label": adjustment.get("importance_label", c.get("importance_label")),
+                "importance_note": adjustment.get("importance_note", c.get("importance_note")),
+            }).eq("id", c["id"]).execute()
+            updated.append({**c, **adjustment})
+        else:
+            updated.append(c)
+    return updated
 
 
 def _finalize_book(book: dict, chapters: list[dict]):
@@ -174,6 +247,7 @@ def _finalize_book(book: dict, chapters: list[dict]):
     ready = [c for c in fresh if c["status"] == "ready"]
     guide = None
     if ready:
+        ready = _recalibrate_book_importance(ready)
         guide = generate_book_guide(
             book_title=book["title"],
             subject=book.get("subject") or book["title"],

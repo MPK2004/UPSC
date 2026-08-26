@@ -1,10 +1,14 @@
 import { supabase } from './supabaseClient';
-import { Book, Chapter, ByteCard, PYQQuestion } from '../types';
+import { Book, Chapter, ByteCard, PYQQuestion, Source } from '../types';
 
 const NO_CLIENT_ERROR = 'Supabase is not configured (missing VITE_SUPABASE_URL/VITE_SUPABASE_ANON_KEY).';
 
 function normalizeArray<T>(value: unknown): T[] {
   return Array.isArray(value) ? (value as T[]) : [];
+}
+
+function normalizeChapter(c: any): Chapter {
+  return { ...c, sources: normalizeArray<Source>(c.sources) };
 }
 
 export async function listBooks(): Promise<{ data: Book[]; error: string | null }> {
@@ -34,7 +38,7 @@ export async function getBookWithChapters(bookId: string): Promise<{
 
   return {
     book: bookRes.data as Book,
-    chapters: (chaptersRes.data ?? []) as Chapter[],
+    chapters: (chaptersRes.data ?? []).map(normalizeChapter),
     error: null,
   };
 }
@@ -43,7 +47,7 @@ export async function getChapter(chapterId: string): Promise<{ chapter: Chapter 
   if (!supabase) return { chapter: null, error: NO_CLIENT_ERROR };
   const { data, error } = await supabase.from('chapters').select('*').eq('id', chapterId).single();
   if (error) return { chapter: null, error: error.message };
-  return { chapter: data as Chapter, error: null };
+  return { chapter: normalizeChapter(data), error: null };
 }
 
 export async function getCardsForChapter(chapterId: string): Promise<{ data: ByteCard[]; error: string | null }> {
@@ -57,6 +61,7 @@ export async function getCardsForChapter(chapterId: string): Promise<{ data: Byt
   const cards = (data ?? []).map((c: any) => ({
     ...c,
     bullet_points: normalizeArray<string>(c.bullet_points),
+    sources: normalizeArray<Source>(c.sources),
   })) as ByteCard[];
   return { data: cards, error: null };
 }
@@ -68,6 +73,7 @@ export async function getPyqsForChapter(chapterId: string): Promise<{ data: PYQQ
   const pyqs = (data ?? []).map((q: any) => ({
     ...q,
     options: normalizeArray<string>(q.options),
+    sources: normalizeArray<Source>(q.sources),
   })) as PYQQuestion[];
   return { data: pyqs, error: null };
 }

@@ -37,11 +37,13 @@ create table if not exists chapters (
   status text not null default 'pending'
     check (status in ('pending', 'processing', 'ready', 'failed')),
   error_message text,
+  sources jsonb not null default '[]'::jsonb,
   created_at timestamptz not null default now()
 );
 
 -- Idempotent column addition for existing databases
 alter table chapters add column if not exists error_message text;
+alter table chapters add column if not exists sources jsonb not null default '[]'::jsonb;
 
 create table if not exists cards (
   id uuid primary key default gen_random_uuid(),
@@ -52,8 +54,12 @@ create table if not exists cards (
   mnemonic text,
   upsc_prelims_tip text,
   diagram_url text,
-  sort_order int
+  sort_order int,
+  sources jsonb not null default '[]'::jsonb
 );
+
+-- Idempotent column addition for existing databases
+alter table cards add column if not exists sources jsonb not null default '[]'::jsonb;
 
 create table if not exists pyqs (
   id uuid primary key default gen_random_uuid(),
@@ -63,8 +69,12 @@ create table if not exists pyqs (
   options jsonb,
   correct_index int,
   explanation text,
-  difficulty text
+  difficulty text,
+  sources jsonb not null default '[]'::jsonb
 );
+
+-- Idempotent column addition for existing databases
+alter table pyqs add column if not exists sources jsonb not null default '[]'::jsonb;
 
 create index if not exists chapters_book_id_idx on chapters(book_id);
 create index if not exists cards_chapter_id_idx on cards(chapter_id);

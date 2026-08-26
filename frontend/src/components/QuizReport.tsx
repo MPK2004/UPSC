@@ -1,6 +1,6 @@
 import React from 'react';
 import { DiagnosticReport } from '../types';
-import { AlertTriangle, CheckCircle2, RotateCcw, Castle, BookOpen } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, RotateCcw, Castle, BookOpen, Link2 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
 interface QuizReportProps {
@@ -139,6 +139,24 @@ export const QuizReport: React.FC<QuizReportProps> = ({ report, onRetake, onCont
                 <span className="font-bold text-sky-400">Explanation: </span>
                 {item.explanation}
               </p>
+              {item.sources && item.sources.length > 0 && (
+                <div className="pt-1 border-t border-gray-800 flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <span className="text-[10px] font-bold text-gray-500 flex items-center gap-1">
+                    <Link2 className="w-3 h-3" /> Sources:
+                  </span>
+                  {item.sources.map((s, i) => (
+                    <a
+                      key={i}
+                      href={s.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[10px] text-sky-300 hover:text-sky-200 underline underline-offset-2"
+                    >
+                      {s.title}
+                    </a>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         ))}

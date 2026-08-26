@@ -1,5 +1,11 @@
 export type ContentStatus = 'pending' | 'processing' | 'ready' | 'failed';
 
+export interface Source {
+  title: string;
+  url: string;
+  tier: string;
+}
+
 export interface Book {
   id: string;
   title: string;
@@ -24,6 +30,7 @@ export interface Chapter {
   approach_guide: string | null;
   status: ContentStatus;
   error_message: string | null;
+  sources?: Source[];
   created_at: string;
 }
 
@@ -37,6 +44,7 @@ export interface ByteCard {
   mnemonic?: string;
   upsc_prelims_tip?: string;
   sort_order?: number | null;
+  sources?: Source[];
 }
 
 export interface PYQQuestion {
@@ -48,6 +56,7 @@ export interface PYQQuestion {
   correct_index: number;
   explanation: string;
   difficulty: string;
+  sources?: Source[];
 }
 
 export interface ItemReport {
@@ -58,6 +67,7 @@ export interface ItemReport {
   correct_option_text: string;
   explanation: string;
   status: 'Correct' | 'Wrong' | 'Unattempted';
+  sources?: Source[];
 }
 
 export interface DiagnosticReport {

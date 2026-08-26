@@ -175,15 +175,17 @@ CHAPTER_SYSTEM_PROMPT = (
 def generate_chapter_content(
     chapter_title: str,
     chapter_text: str,
-    research_context: str,
+    research_text: str,
     subject: str,
 ) -> Optional[Dict[str, Any]]:
     """
-    The core agentic step: given a chapter's own text plus web research
-    context gathered separately (see services/web_research.py), produces
+    The core agentic step: given a chapter's own text plus a numbered,
+    tier-labeled block of web research findings (see
+    services/web_research.py's format_research_for_prompt), produces
     ByteReel cards, practice questions, an importance rating, and a
     chapter-level approach guide — all grounded in real source material
-    rather than the model's own recall.
+    rather than the model's own recall, with every claim traceable to a
+    specific numbered finding rather than an invented citation.
     """
     prompt = f"""
 Book subject: {subject}
@@ -192,21 +194,38 @@ Chapter: {chapter_title}
 --- CHAPTER TEXT (source material, ground your cards in this) ---
 {chapter_text[:6000]}
 
---- WEB RESEARCH CONTEXT (use this to judge real UPSC relevance/importance, not just the model's opinion) ---
-{research_context[:3000] if research_context else "(no web context available — base importance judgment on the chapter text alone and say so in importance_note)"}
+--- NUMBERED RESEARCH FINDINGS (cite ONLY by these bracketed numbers — never invent a URL of your own) ---
+{research_text[:3000] if research_text else "(no web research available — base your judgment on the chapter text alone, say so in importance_note, and leave every sources array empty)"}
+
+You may only cite research by its bracketed number above. (official source) findings
+are your strongest evidence for factual/policy claims; (UPSC analysis) findings are
+evidence for exam weightage and strategy, not raw fact. If a card, PYQ, or judgment
+is grounded purely in the chapter's own text rather than the research above, leave
+its "sources" array empty rather than forcing a citation.
+
+Importance must be evidence-based, not a default. Cite actual PYQ frequency or
+current-affairs linkage found in the research above when possible. Do NOT default
+to "High" — most chapters in a real UPSC textbook are Medium or Low; reserve High
+for chapters with clear, repeated PYQ history or major current-affairs linkage. If
+this chapter's importance differs by angle (e.g. high for factual Prelims recall
+but low for conceptual/Mains depth), say so explicitly in importance_note rather
+than flattening it into one framing.
 
 Produce a single JSON object with this exact shape:
 {{
   "importance_label": "High" | "Medium" | "Low",
-  "importance_note": "one sentence citing what makes this high/medium/low yield for UPSC Prelims",
+  "importance_note": "one or two sentences citing the actual evidence for this rating",
+  "importance_sources": [<research finding numbers used above, or empty array>],
   "approach_guide": "2-4 sentences: how an aspirant should actually study this specific chapter — what to prioritize, what to skip, common traps",
+  "approach_sources": [<research finding numbers used above, or empty array>],
   "cards": [
     {{
       "title": "concise heading",
       "concept_type": "Fact" | "Mnemonic" | "Visual Diagram" | "Prelims Alert",
       "bullet_points": ["3 crisp, exam-accurate bullet points"],
       "mnemonic": "memory trick, or empty string if not applicable",
-      "upsc_prelims_tip": "a specific prelims-relevant tip, or empty string"
+      "upsc_prelims_tip": "a specific prelims-relevant tip, or empty string",
+      "sources": [<research finding numbers this card draws on, or empty array>]
     }}
     // 5-8 cards total, covering the chapter's key sub-topics
   ],
@@ -217,7 +236,8 @@ Produce a single JSON object with this exact shape:
       "options": ["four options"],
       "correct_index": 0,
       "explanation": "why the correct answer is correct and others aren't",
-      "difficulty": "Easy" | "Moderate" | "Hard"
+      "difficulty": "Easy" | "Moderate" | "Hard",
+      "sources": [<research finding numbers, or empty array if this is a genuine past-year question you recall independently>]
     }}
     // 2-4 questions
   ]
@@ -228,6 +248,51 @@ practice questions you write yourself, set "year" to "Practice" rather than
 fabricating a year. Respond with only the JSON object.
 """
     return generate_json(prompt, CHAPTER_SYSTEM_PROMPT)
+
+
+def recalibrate_importance(chapters: List[Dict[str, Any]]) -> Optional[Dict[str, Dict[str, str]]]:
+    """
+    Book-level pass: each chapter is generated independently with no
+    visibility into how the other chapters in the same book were rated, so
+    per-chapter generation structurally cannot self-calibrate a realistic
+    spread of importance across the book. This runs once, after every
+    chapter is ready, with full-book visibility, and is explicitly told to
+    enforce genuine relative differentiation rather than letting everything
+    default to High.
+
+    `chapters` is a list of {"id", "title", "importance_note", "source_count"}.
+    Returns {chapter_id: {"importance_label": ..., "importance_note": ...}}
+    for chapters whose rating should change, or None on failure (caller
+    should leave existing labels untouched in that case).
+    """
+    if not chapters:
+        return None
+
+    listing = "\n".join(
+        f"- id={c['id']} | \"{c['title']}\" | current note: {c.get('importance_note') or '(none)'} "
+        f"| evidence sources found: {c.get('source_count', 0)}"
+        for c in chapters
+    )
+    prompt = f"""
+Below is every chapter of one UPSC textbook, each already given an independent,
+isolated importance judgment (it could not see the other chapters when rated).
+
+{listing}
+
+Re-judge importance RELATIVE to this specific book. A real UPSC textbook has a
+genuine mix — do not mark most chapters High. Aim for roughly a third Low, a
+third Medium, and a third High, weighted by each chapter's actual evidence
+(PYQ frequency, current-affairs linkage, number of sources found) rather than
+giving every chapter the same rating. Only include a chapter in your response
+if its label or note should change from the current one.
+
+Respond with a single JSON object:
+{{
+  "<chapter id>": {{"importance_label": "High" | "Medium" | "Low", "importance_note": "one or two sentences, relative to this book"}}
+  // only chapters that need to change
+}}
+"""
+    return generate_json(prompt, CHAPTER_SYSTEM_PROMPT, max_attempts_per_model=1)
 
 
 def generate_book_guide(book_title: str, subject: str, chapter_summaries: List[Dict[str, str]]) -> Optional[str]:

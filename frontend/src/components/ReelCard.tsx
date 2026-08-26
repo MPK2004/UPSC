@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { ByteCard, PYQQuestion } from '../types';
 import { addMasteredBrick, saveNote, getMasteredBricks } from '../utils/supabaseClient';
-import { Volume2, VolumeX, Castle, Bookmark, AlertCircle, Lightbulb, ZoomIn, Check, HelpCircle } from 'lucide-react';
+import { Volume2, VolumeX, Castle, Bookmark, AlertCircle, Lightbulb, ZoomIn, Check, HelpCircle, Link2, ShieldCheck } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
 interface ReelCardProps {
@@ -14,6 +14,7 @@ export const ReelCard: React.FC<ReelCardProps> = ({ card, onBrickEarned, related
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [showMnemonic, setShowMnemonic] = useState(false);
   const [showTip, setShowTip] = useState(false);
+  const [showSources, setShowSources] = useState(false);
   const [showDiagramZoom, setShowDiagramZoom] = useState(false);
   const [isSavedNote, setIsSavedNote] = useState(false);
   const [showMiniQuiz, setShowMiniQuiz] = useState(false);
@@ -147,6 +148,34 @@ export const ReelCard: React.FC<ReelCardProps> = ({ card, onBrickEarned, related
           </div>
         )}
 
+        {/* Sources Accordion */}
+        {showSources && card.sources && card.sources.length > 0 && (
+          <div className="p-3.5 rounded-2xl bg-slate-900/90 border border-gray-800 text-xs animate-fadeIn space-y-2">
+            <span className="flex items-center gap-1 text-[10px] uppercase text-gray-400 font-black">
+              <Link2 className="w-3.5 h-3.5" /> Sources
+            </span>
+            <ul className="space-y-1.5">
+              {card.sources.map((s, i) => (
+                <li key={i}>
+                  <a
+                    href={s.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-start gap-1.5 text-gray-300 hover:text-white leading-snug"
+                  >
+                    <span className="underline underline-offset-2">{s.title}</span>
+                    {s.tier === 'official' && (
+                      <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-black uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex-shrink-0">
+                        <ShieldCheck className="w-2.5 h-2.5" /> Official
+                      </span>
+                    )}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         {/* Mini Quiz Inline */}
         {showMiniQuiz && matchingPYQ && (
           <div className="p-4 rounded-2xl bg-slate-900/90 border border-gray-800 space-y-3 animate-fadeIn">
@@ -263,7 +292,21 @@ export const ReelCard: React.FC<ReelCardProps> = ({ card, onBrickEarned, related
           </button>
         )}
 
-        {/* 5. Save Note Button */}
+        {/* 5. Sources Toggle */}
+        {card.sources && card.sources.length > 0 && (
+          <button
+            onClick={() => setShowSources(!showSources)}
+            aria-label={showSources ? 'Hide sources' : 'Show sources'}
+            aria-expanded={showSources}
+            className={`action-btn ${showSources ? 'active-emerald' : ''}`}
+            title="Sources"
+          >
+            <Link2 className="w-5 h-5" aria-hidden="true" />
+            <span className="action-btn-label">Sources</span>
+          </button>
+        )}
+
+        {/* 6. Save Note Button */}
         <button
           onClick={handleSaveNote}
           aria-label={isSavedNote ? 'Note saved' : 'Save note'}
