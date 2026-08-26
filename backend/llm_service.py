@@ -249,9 +249,11 @@ Chapter: {chapter_title}
 
 You may only cite research by its bracketed number above. (official source) findings
 are your strongest evidence for factual/policy claims; (UPSC analysis) findings are
-evidence for exam weightage and strategy, not raw fact. If a card, PYQ, or judgment
-is grounded purely in the chapter's own text rather than the research above, leave
-its "sources" array empty rather than forcing a citation.
+evidence for exam weightage and strategy, not raw fact; (Wikipedia) findings are
+general-purpose background only — use them for basic definitions/terminology, never
+as evidence for an importance/weightage judgment. If a card, PYQ, or judgment is
+grounded purely in the chapter's own text rather than the research above, leave its
+"sources" array empty rather than forcing a citation.
 
 Importance must be evidence-based, not a default. Cite actual PYQ frequency or
 current-affairs linkage found in the research above when possible. Do NOT default
