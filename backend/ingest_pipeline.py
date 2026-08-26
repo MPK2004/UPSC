@@ -117,7 +117,13 @@ def _resolve_sources(ids, findings: list[dict]) -> list[dict]:
     actually fetched — dedupes and silently drops any number outside the
     known range (a hallucinated citation) rather than trusting the LLM."""
     by_id = {f["id"]: {"title": f["title"], "url": f["url"], "tier": f["tier"]} for f in findings}
-    return [by_id[i] for i in dict.fromkeys(ids or []) if i in by_id]
+    normalized_ids = []
+    for i in ids or []:
+        try:
+            normalized_ids.append(int(i))  # free models often emit "1" instead of 1
+        except (TypeError, ValueError):
+            continue
+    return [by_id[i] for i in dict.fromkeys(normalized_ids) if i in by_id]
 
 
 def _insert_with_sources_fallback(table: str, rows: list[dict]):
@@ -143,6 +149,7 @@ def _process_chapter(book: dict, chapter: dict, pdf_path: str):
     subject = book.get("subject") or book["title"]
     findings = research_topic(chapter["title"], subject=subject)
     research_text = format_research_for_prompt(findings)
+    print(f"[ingest_pipeline]     Research: {len(findings)} findings gathered for '{chapter['title']}'.")
 
     result = generate_chapter_content(
         chapter_title=chapter["title"],
@@ -190,6 +197,9 @@ def _process_chapter(book: dict, chapter: dict, pdf_path: str):
         list(result.get("importance_sources") or []) + list(result.get("approach_sources") or []),
         findings,
     )
+    print(f"[ingest_pipeline]     Sources cited: chapter={len(chapter_sources)}, "
+          f"cards with sources={sum(1 for c in cards if c.get('sources'))}/{len(cards)}, "
+          f"pyqs with sources={sum(1 for q in pyqs if q.get('sources'))}/{len(pyqs)}.")
     try:
         supabase.table("chapters").update({
             "status": "ready",
