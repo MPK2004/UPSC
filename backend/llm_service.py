@@ -288,13 +288,20 @@ as evidence for an importance/weightage judgment. If a card, PYQ, or judgment is
 grounded purely in the chapter's own text rather than the research above, leave its
 "sources" array empty rather than forcing a citation.
 
-Importance must be evidence-based, not a default. Cite actual PYQ frequency or
-current-affairs linkage found in the research above when possible. Do NOT default
-to "High" — most chapters in a real UPSC textbook are Medium or Low; reserve High
-for chapters with clear, repeated PYQ history or major current-affairs linkage. If
-this chapter's importance differs by angle (e.g. high for factual Prelims recall
-but low for conceptual/Mains depth), say so explicitly in importance_note rather
-than flattening it into one framing.
+Importance must be evidence-based, not a default — pick whichever of the three
+actually fits, don't settle on one label as the safe default when unsure:
+- High: clear, repeated PYQ history for this specific topic, or major
+  current-affairs linkage found in the research above.
+- Medium: some genuine exam relevance (occasional PYQ appearances, meaningful
+  conceptual weight for Mains) but not the repeated/current-affairs pattern High
+  requires.
+- Low: foundational, definitional, or background content — rarely tested on its
+  own, mostly there to support later chapters.
+A real UPSC textbook has a genuine three-way spread; don't let uncertainty push
+everything into the middle label any more than into "High". If this chapter's
+importance differs by angle (e.g. high for factual Prelims recall but low for
+conceptual/Mains depth), say so explicitly in importance_note rather than
+flattening it into one framing.
 
 Produce a single JSON object with this exact shape:
 {{
