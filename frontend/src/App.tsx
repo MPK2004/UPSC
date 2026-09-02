@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Header } from './components/Header';
 import { BottomNav } from './components/BottomNav';
 import { BookList } from './components/BookList';
+import { UploadBook } from './components/UploadBook';
 import { BookDetail } from './components/BookDetail';
 import { ChapterDetail } from './components/ChapterDetail';
 import { ChapterCardsView } from './components/ChapterCardsView';
@@ -12,6 +13,7 @@ import { getMasteredBricks } from './utils/supabaseClient';
 
 type Screen =
   | { kind: 'library' }
+  | { kind: 'upload' }
   | { kind: 'bookDetail'; bookId: string }
   | { kind: 'chapterDetail'; bookId: string; chapterId: string; chapterTitle: string }
   | { kind: 'studyCards'; bookId: string; chapterId: string; chapterTitle: string }
@@ -37,7 +39,17 @@ export const App: React.FC = () => {
       {/* Main View Container */}
       <main className="flex-1 w-full max-w-md mx-auto">
         {screen.kind === 'library' && (
-          <BookList onSelectBook={bookId => setScreen({ kind: 'bookDetail', bookId })} />
+          <BookList
+            onSelectBook={bookId => setScreen({ kind: 'bookDetail', bookId })}
+            onUpload={() => setScreen({ kind: 'upload' })}
+          />
+        )}
+
+        {screen.kind === 'upload' && (
+          <UploadBook
+            onBack={() => setScreen({ kind: 'library' })}
+            onUploaded={bookId => setScreen({ kind: 'bookDetail', bookId })}
+          />
         )}
 
         {screen.kind === 'bookDetail' && (

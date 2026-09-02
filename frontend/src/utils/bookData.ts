@@ -84,3 +84,23 @@ export async function getTotalCardCount(): Promise<{ count: number; error: strin
   if (error) return { count: 0, error: error.message };
   return { count: count ?? 0, error: null };
 }
+
+export async function uploadBook(
+  { file, title, subject }: { file: File; title: string; subject: string }
+): Promise<{ book: Book | null; error: string | null }> {
+  if (!supabase) return { book: null, error: NO_CLIENT_ERROR };
+
+  const storagePath = `${crypto.randomUUID()}.pdf`;
+  const { error: uploadError } = await supabase.storage
+    .from('book-uploads')
+    .upload(storagePath, file, { contentType: 'application/pdf' });
+  if (uploadError) return { book: null, error: uploadError.message };
+
+  const { data, error } = await supabase
+    .from('books')
+    .insert({ title, subject: subject || null, storage_path: storagePath, status: 'pending' })
+    .select()
+    .single();
+  if (error) return { book: null, error: error.message };
+  return { book: data as Book, error: null };
+}

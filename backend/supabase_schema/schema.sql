@@ -103,13 +103,20 @@ create policy "anon can read cards" on cards
 create policy "anon can read pyqs" on pyqs
   for select using (true);
 
--- Storage: the `book-uploads` bucket should allow anonymous INSERT (upload)
--- but no public SELECT (no free redistribution of the raw textbook PDFs).
--- Create the bucket in the dashboard as Private, then run:
---
--- create policy "anon can upload books" on storage.objects
---   for insert to anon
---   with check (bucket_id = 'book-uploads');
---
+-- Storage: the `book-uploads` bucket allows anonymous INSERT (upload) but no
+-- public SELECT (no free redistribution of the raw textbook PDFs). Create
+-- the bucket in the dashboard as Private first, then run:
+
+create policy "anon can upload books" on storage.objects
+  for insert to anon
+  with check (bucket_id = 'book-uploads');
+
 -- The worker reads uploaded PDFs using the service-role key, which bypasses
 -- this policy entirely.
+
+-- Bucket-level enforcement (the actual security boundary — there's no auth,
+-- so PDF-only + a size cap is the only real guardrail on public uploads):
+update storage.buckets
+set file_size_limit = 52428800, -- 50MB
+    allowed_mime_types = array['application/pdf']
+where id = 'book-uploads';

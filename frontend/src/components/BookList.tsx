@@ -2,10 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { Book } from '../types';
 import { listBooks } from '../utils/bookData';
 import { subjectColor } from '../utils/subjectColor';
-import { BookOpen, Loader2, AlertTriangle, Clock } from 'lucide-react';
+import { BookOpen, Loader2, AlertTriangle, Clock, UploadCloud } from 'lucide-react';
 
 interface BookListProps {
   onSelectBook: (bookId: string) => void;
+  onUpload: () => void;
 }
 
 function statusBadge(status: Book['status']) {
@@ -27,7 +28,7 @@ function statusBadge(status: Book['status']) {
   }
 }
 
-export const BookList: React.FC<BookListProps> = ({ onSelectBook }) => {
+export const BookList: React.FC<BookListProps> = ({ onSelectBook, onUpload }) => {
   const [books, setBooks] = useState<Book[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -76,15 +77,30 @@ export const BookList: React.FC<BookListProps> = ({ onSelectBook }) => {
         <BookOpen className="w-10 h-10 text-gray-500" />
         <h3 className="text-lg font-extrabold text-white font-heading">No books yet</h3>
         <p className="text-xs text-gray-400 max-w-xs">
-          Ask your admin to queue a book for processing.
+          Upload a book to get started.
         </p>
+        <button
+          onClick={onUpload}
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-400 text-slate-950 font-black text-xs shadow-lg shadow-amber-500/30"
+        >
+          <UploadCloud className="w-4 h-4" /> Upload Book
+        </button>
       </div>
     );
   }
 
   return (
     <div className="max-w-2xl mx-auto p-4 pt-16 pb-24 space-y-3">
-      <h2 className="text-sm font-extrabold text-gray-300 uppercase tracking-wider px-1">Library</h2>
+      <div className="flex items-center justify-between px-1">
+        <h2 className="text-sm font-extrabold text-gray-300 uppercase tracking-wider">Library</h2>
+        <button
+          onClick={onUpload}
+          aria-label="Upload a book"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-900 border border-gray-700 text-xs font-bold text-gray-200 hover:border-amber-500/50"
+        >
+          <UploadCloud className="w-3.5 h-3.5 text-amber-400" /> Upload
+        </button>
+      </div>
       {books.map(book => {
         const palette = subjectColor(book.subject);
         const notReady = book.status !== 'ready';
