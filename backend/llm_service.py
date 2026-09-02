@@ -13,6 +13,8 @@ import requests
 from typing import Dict, Any, List, Optional
 from dotenv import load_dotenv
 
+from services.web_research import department_menu_for_prompt
+
 load_dotenv()
 
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
@@ -161,6 +163,84 @@ CHAPTER_SYSTEM_PROMPT = (
 )
 
 
+def plan_chapter_research(chapter_title: str, chapter_text_excerpt: str, subject: str) -> Optional[Dict[str, Any]]:
+    """
+    Runs before web_research.research_topic() for a chapter, deciding how
+    that research should be targeted instead of leaning on a fixed
+    subject->domain mapping:
+      - whether this specific topic actually has data that changes over time
+        (population figures, economic indicators, current policy) — official
+        government sources are only useful for that; a chapter on how
+        evaporation/condensation works, or a historical event, has nothing
+        for e.g. NITI Aayog to say, and querying it there just wastes a DDG
+        call for a near-guaranteed empty result.
+      - which specific departments/ministries, named in plain language (e.g.
+        "NITI Aayog", "Ministry of Health and Family Welfare"), actually
+        cover that data — a Geography book's "Population" chapter needs
+        Census/NITI Aayog, not ISRO/Survey of India, even though most of
+        that same book's chapters genuinely are ISRO territory. The LLM
+        names the department, not its domain — web_research.research_topic
+        turns that into an unrestricted keyword search (no site: operator)
+        and accepts a result into the official tier only if the URL DDG
+        actually returns is a genuine .gov.in/.nic.in/.res.in page
+        (web_research._is_official_domain). That's a structural check on the
+        real result, not trust in whatever the LLM names — so this can cover
+        a department that was never hardcoded anywhere, without opening the
+        door to an invented or look-alike domain.
+      - a disambiguated, India-scoped search query, since a bare chapter
+        title like "Population Growth" risks pulling US/China/global results
+        even inside a site-restricted search if the phrasing itself is generic.
+
+    Best-effort: returns None on any LLM failure, in which case the caller
+    (web_research.research_topic) falls back to the coarse, static
+    subject-level department mapping rather than doing zero official-tier
+    research for the chapter.
+    """
+    prompt = f"""
+Book subject: {subject}
+Chapter: {chapter_title}
+
+--- CHAPTER TEXT EXCERPT ---
+{chapter_text_excerpt[:1500]}
+
+--- EXAMPLES OF INDIAN GOVERNMENT DEPARTMENTS/AGENCIES (not exhaustive — name whichever real department actually covers this topic, even if it's not one of these) ---
+{department_menu_for_prompt()}
+
+Decide how to research this specific chapter topic for a UPSC aspirant:
+
+1. needs_current_data: true if this topic involves facts that change over time
+   and where an up-to-date government figure/policy would actually matter
+   (population statistics, economic indicators, environmental data, current
+   policy/schemes, recent government reports). false if the topic is a
+   static mechanism, definition, historical event, or process that doesn't
+   change (e.g. how evaporation/condensation works, a historical dynasty,
+   the definition of a landform) — official government sites have nothing
+   useful to add for these, so don't waste a query on them.
+
+2. departments: ONLY if needs_current_data is true, up to 3 real Indian
+   government department/ministry/agency names (plain language, e.g. "NITI
+   Aayog", "Ministry of Health and Family Welfare", "Census of India") that
+   actually cover THIS specific topic — not just any government body related
+   to the book's general subject. E.g. a population topic needs "Census of
+   India" and "NITI Aayog", not "ISRO", even in a Geography book. You are not
+   limited to the examples above — name whichever real department actually
+   fits, but only ones you're confident genuinely exist and genuinely cover
+   this topic; never guess or pad the list. Empty array if needs_current_data
+   is false, or if nothing genuinely fits this specific topic.
+
+3. search_query: a short, specific, India-scoped search phrase for this
+   topic — explicitly include "India" and the specific subject matter so the
+   search can't drift toward another country's data or an unrelated angle
+   (e.g. "population growth trends and distribution in India", not just
+   "population growth").
+
+Respond with a single JSON object:
+{{"needs_current_data": true | false, "departments": [<up to 3 real department names, or empty array>], "search_query": "..."}}
+Respond with only the JSON object.
+"""
+    return generate_json(prompt, CHAPTER_SYSTEM_PROMPT, max_attempts_per_model=1)
+
+
 def generate_chapter_content(
     chapter_title: str,
     chapter_text: str,
@@ -241,7 +321,7 @@ fabricating a year. Respond with only the JSON object.
     return generate_json(prompt, CHAPTER_SYSTEM_PROMPT)
 
 
-def recalibrate_importance(chapters: List[Dict[str, Any]]) -> Optional[Dict[str, Dict[str, str]]]:
+def recalibrate_importance(chapters: List[Dict[str, Any]], research_text: str = "") -> Optional[Dict[str, Dict[str, str]]]:
     """
     Book-level pass: each chapter is generated independently with no
     visibility into how the other chapters in the same book were rated, so
@@ -250,6 +330,16 @@ def recalibrate_importance(chapters: List[Dict[str, Any]]) -> Optional[Dict[str,
     chapter is ready, with full-book visibility, and is explicitly told to
     enforce genuine relative differentiation rather than letting everything
     default to High.
+
+    `research_text` (see web_research.research_book_strategy, run once per
+    book) is subject-wide UPSC-analysis content — overall weightage trends,
+    which chapters toppers prioritize — that no single chapter's own research
+    covers, since each chapter's research is scoped to that chapter's topic.
+    It's context only here (real evidence for a *relative* judgment across
+    chapters), not a citable source — recalibration adjusts existing
+    per-chapter labels/notes rather than writing new sourced claims, so
+    there's nowhere to attach a fresh citation the way a chapter's own
+    importance_note can.
 
     `chapters` is a list of {"id", "title", "importance_note", "source_count"}.
     Returns {chapter_id: {"importance_label": ..., "importance_note": ...}}
@@ -270,12 +360,17 @@ isolated importance judgment (it could not see the other chapters when rated).
 
 {listing}
 
+--- SUBJECT-WIDE UPSC STRATEGY RESEARCH (real findings from UPSC-analysis sites, for context on how toppers/analysts weight this subject as a whole) ---
+{research_text[:2500] if research_text else "(none available — judge from the chapter listing above alone)"}
+
 Re-judge importance RELATIVE to this specific book. A real UPSC textbook has a
 genuine mix — do not mark most chapters High. Aim for roughly a third Low, a
 third Medium, and a third High, weighted by each chapter's actual evidence
 (PYQ frequency, current-affairs linkage, number of sources found) rather than
-giving every chapter the same rating. Only include a chapter in your response
-if its label or note should change from the current one.
+giving every chapter the same rating. Use the subject-wide research above only
+as general context on how this subject is weighted overall — it's background,
+not a citable source for any individual chapter's note. Only include a chapter
+in your response if its label or note should change from the current one.
 
 Respond with a single JSON object:
 {{
@@ -286,10 +381,22 @@ Respond with a single JSON object:
     return generate_json(prompt, CHAPTER_SYSTEM_PROMPT, max_attempts_per_model=1)
 
 
-def generate_book_guide(book_title: str, subject: str, chapter_summaries: List[Dict[str, str]]) -> Optional[str]:
+def generate_book_guide(
+    book_title: str, subject: str, chapter_summaries: List[Dict[str, str]], research_text: str = ""
+) -> Optional[Dict[str, Any]]:
     """
     Synthesizes a book-level "how to approach this subject" guide from the
-    already-generated chapter guides + importance labels.
+    already-generated chapter guides + importance labels, grounded in real
+    subject-wide strategy research (see web_research.research_book_strategy)
+    where available — booklists, overall weightage trends, priority order
+    across the whole subject, the kind of content topper/analysis sites
+    actually publish but no single chapter's own research would surface.
+
+    Returns {"approach_guide": "...", "sources": [<finding numbers cited>]}
+    or None on failure. Citation-by-number only, same discipline as
+    chapter-level generation — the caller resolves numbers back to real
+    {title, url, tier} via ingest_pipeline._resolve_sources, so a
+    hallucinated citation can't persist.
     """
     summary_block = "\n".join(
         f"- {c['title']} [{c.get('importance_label', '?')}]: {c.get('approach_guide', '')}"
@@ -301,12 +408,17 @@ Book: {book_title} (Subject: {subject})
 Chapter-level guides already generated:
 {summary_block}
 
-Write a single JSON object: {{"approach_guide": "..."}}
+--- NUMBERED SUBJECT-WIDE RESEARCH FINDINGS (cite ONLY by these bracketed numbers — never invent a URL) ---
+{research_text[:2500] if research_text else "(none available — base the guide on the chapter summaries alone, and leave sources empty)"}
+
+Write a single JSON object: {{"approach_guide": "...", "sources": [<finding numbers used above, or empty array>]}}
 The approach_guide should be a short strategy briefing (4-6 sentences) for an
 aspirant starting this subject: overall priority order across chapters based
 on their importance labels, how much time to budget relative to other
-subjects, and any cross-chapter traps or overlaps worth knowing up front.
+subjects, and any cross-chapter traps or overlaps worth knowing up front. Cite
+the numbered research above where it actually informed a specific claim (a
+booklist recommendation, a weightage trend); leave sources empty if the guide
+is built purely from the chapter summaries.
 Respond with only the JSON object.
 """
-    result = generate_json(prompt, CHAPTER_SYSTEM_PROMPT, max_attempts_per_model=1)
-    return result.get("approach_guide") if result else None
+    return generate_json(prompt, CHAPTER_SYSTEM_PROMPT, max_attempts_per_model=1)

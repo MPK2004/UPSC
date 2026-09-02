@@ -21,8 +21,8 @@ from datetime import datetime, timezone
 
 from services.supabase_client import supabase
 from services.pdf_structure import extract_top_level_chapters, extract_chapter_text
-from services.web_research import research_topic, format_research_for_prompt
-from llm_service import generate_chapter_content, generate_book_guide, recalibrate_importance
+from services.web_research import research_topic, research_book_strategy, format_research_for_prompt
+from llm_service import generate_chapter_content, generate_book_guide, recalibrate_importance, plan_chapter_research
 
 RUN_BUDGET_SECONDS = int(os.getenv("INGEST_RUN_BUDGET_SECONDS", "720"))
 # Comfortably longer than one run budget, so a book that's genuinely still
@@ -147,7 +147,15 @@ def _process_chapter(book: dict, chapter: dict, pdf_path: str):
         raise RuntimeError(f"No extractable text for chapter '{chapter['title']}' (pages {chapter['page_start']}-{chapter['page_end']}).")
 
     subject = book.get("subject") or book["title"]
-    findings = research_topic(chapter["title"], subject=subject)
+
+    plan = plan_chapter_research(chapter["title"], chapter_text, subject)
+    if plan:
+        print(f"[ingest_pipeline]     Research plan: needs_current_data={plan.get('needs_current_data')}, "
+              f"departments={plan.get('departments')}, query='{plan.get('search_query')}'.")
+    else:
+        print("[ingest_pipeline]     Research plan: LLM planning failed, falling back to subject-level defaults.")
+
+    findings = research_topic(chapter["title"], subject=subject, plan=plan)
     research_text = format_research_for_prompt(findings)
     print(f"[ingest_pipeline]     Research: {len(findings)} findings gathered for '{chapter['title']}'.")
 
@@ -219,7 +227,7 @@ def _process_chapter(book: dict, chapter: dict, pdf_path: str):
         }).eq("id", chapter["id"]).execute()
 
 
-def _recalibrate_book_importance(ready: list[dict]) -> list[dict]:
+def _recalibrate_book_importance(ready: list[dict], research_text: str) -> list[dict]:
     """Runs the book-level importance recalibration pass (see
     llm_service.recalibrate_importance) and applies any adjustments back onto
     the chapters table, returning `ready` with the corrected labels/notes so
@@ -234,7 +242,7 @@ def _recalibrate_book_importance(ready: list[dict]) -> list[dict]:
         }
         for c in ready
     ]
-    adjustments = recalibrate_importance(calibration_input)
+    adjustments = recalibrate_importance(calibration_input, research_text=research_text)
     if not adjustments:
         return ready
 
@@ -256,19 +264,39 @@ def _finalize_book(book: dict, chapters: list[dict]):
     fresh = supabase.table("chapters").select("*").eq("book_id", book["id"]).execute().data
     ready = [c for c in fresh if c["status"] == "ready"]
     guide = None
+    book_sources = []
     if ready:
-        ready = _recalibrate_book_importance(ready)
-        guide = generate_book_guide(
-            book_title=book["title"],
-            subject=book.get("subject") or book["title"],
-            chapter_summaries=ready,
-        )
+        subject = book.get("subject") or book["title"]
+        book_findings = research_book_strategy(subject)
+        research_text = format_research_for_prompt(book_findings)
+        print(f"[ingest_pipeline] Book-level strategy research: {len(book_findings)} findings gathered for '{subject}'.")
 
-    supabase.table("books").update({
-        "status": "ready",
-        "approach_guide": guide,
-        "processed_at": _now_iso(),
-    }).eq("id", book["id"]).execute()
+        ready = _recalibrate_book_importance(ready, research_text)
+        guide_result = generate_book_guide(
+            book_title=book["title"],
+            subject=subject,
+            chapter_summaries=ready,
+            research_text=research_text,
+        )
+        if guide_result:
+            guide = guide_result.get("approach_guide")
+            book_sources = _resolve_sources(guide_result.get("sources"), book_findings)
+
+    try:
+        supabase.table("books").update({
+            "status": "ready",
+            "approach_guide": guide,
+            "sources": book_sources,
+            "processed_at": _now_iso(),
+        }).eq("id", book["id"]).execute()
+    except Exception as e:
+        # Fallback if the sources column does not exist yet on books table in Supabase
+        print(f"[ingest_pipeline] Note: books update with sources failed ({e}), updating without sources.")
+        supabase.table("books").update({
+            "status": "ready",
+            "approach_guide": guide,
+            "processed_at": _now_iso(),
+        }).eq("id", book["id"]).execute()
 
 
 def run_once():

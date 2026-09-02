@@ -3,16 +3,21 @@ Free, keyless web research helpers for the ingestion pipeline.
 
 Sources, all free and requiring no API key:
 - Wikipedia's REST summary API: reliable, structured, good factual grounding.
-- DuckDuckGo's keyless search (via the `ddgs` package): restricted to a
-  curated allowlist of reputed sources — never the open web — split into two
-  tiers:
-    - "official": primary/government sources, chosen by the book's subject
-      (e.g. ISRO/Survey of India for Geography, RBI/Finance Ministry for
-      Economy). Mirrors the "official/primary sources outrank generic
-      analysis" principle of a real UPSC source hierarchy.
-    - "upsc_analysis": well-known UPSC exam-analysis / topper-strategy sites,
-      queried together (weightage + topper-opinion in one query) regardless
-      of subject, to keep total DDG request volume low.
+- DuckDuckGo's keyless search (via the `ddgs` package): never the open web,
+  split into two tiers with two different kinds of guarantee:
+    - "official": primary/government sources for the specific chapter topic
+      (decided per-chapter by an LLM planning step, see
+      llm_service.plan_chapter_research — not a fixed subject->domain
+      mapping). The search itself is unrestricted (no site: operator); a
+      result only counts if _is_official_domain() confirms the URL is a
+      genuine .gov.in/.nic.in/.res.in page — a structural guarantee on the
+      real result, not a requirement that the domain was already known.
+    - "upsc_analysis": well-known UPSC exam-analysis / topper-strategy /
+      exam-prep sites, queried together (weightage + topper-opinion angle in
+      one query) regardless of subject or topic. There's no TLD-style
+      guarantee for commercial sites, so this tier stays restricted to a
+      fixed, code-verified allowlist (a core set plus a few rotated in per
+      chapter — see UPSC_ANALYSIS_CORE_SITES/UPSC_ANALYSIS_EXTRA_SITES).
 
 Every finding keeps its real title/url so the LLM can cite it by number and
 the pipeline can persist real, resolvable citations — never a source the LLM
@@ -26,6 +31,7 @@ random-website citations, which is the whole point of the allowlist.
 """
 
 import os
+import random
 import time
 from urllib.parse import urlparse
 
@@ -55,36 +61,183 @@ _WIKI_HEADERS = {
 WIKIPEDIA_DOMAIN = "en.wikipedia.org"
 MAX_FINDINGS = 10
 
-# Tier 1 — official/primary sources, chosen by the book's subject. No entry
-# for a subject means no tier-1 query for it — never guess a mapping.
-OFFICIAL_SOURCES_BY_SUBJECT = {
-    "geography": ["isro.gov.in", "surveyofindia.gov.in", "mausam.imd.gov.in", "bhuvan.nrsc.gov.in"],
-    "environment": ["moef.gov.in", "cpcb.nic.in", "nbaindia.org"],
-    "ecology": ["moef.gov.in", "cpcb.nic.in", "nbaindia.org"],
-    "polity": ["indiacode.nic.in", "sci.gov.in", "prsindia.org", "loksabha.nic.in", "darpg.gov.in"],
-    "governance": ["darpg.gov.in", "prsindia.org", "sci.gov.in"],
-    "economy": ["rbi.org.in", "indiabudget.gov.in", "mospi.gov.in", "finmin.gov.in"],
-    "economics": ["rbi.org.in", "indiabudget.gov.in", "mospi.gov.in", "finmin.gov.in"],
-    "history": ["indiaculture.gov.in", "asi.nic.in", "ccrtindia.gov.in"],
-    "science": ["dst.gov.in", "dbtindia.gov.in", "icmr.gov.in", "isro.gov.in"],
-    "society": ["censusindia.gov.in", "niti.gov.in", "mospi.gov.in"],
-    "international relations": ["mea.gov.in"],
-    "agriculture": ["agriwelfare.gov.in", "icar.gov.in"],
-    "security": ["mha.gov.in"],
+# Tier 1 — official/primary government sources. Keyed by a short department
+# id (not by book subject) because the *right* department depends on the
+# specific chapter topic, not the book's subject as a whole — a Geography
+# book's "Population" chapter needs Census/NITI Aayog, not ISRO, even though
+# most of that same book's chapters genuinely are ISRO/Survey-of-India
+# territory. `plan_chapter_research()` (llm_service.py) picks department ids
+# from this menu per chapter; this dict is also the allowlist those ids are
+# validated against (an id the LLM invents that isn't a key here is dropped —
+# same defense-in-depth pattern as citation resolution).
+OFFICIAL_DOMAINS = {
+    "isro": ("isro.gov.in", "ISRO — remote sensing, satellite programs, space missions"),
+    "bhuvan": ("bhuvan.nrsc.gov.in", "ISRO's Bhuvan geoportal — land use, terrain, geospatial data"),
+    "surveyofindia": ("surveyofindia.gov.in", "Survey of India — maps, geodesy, boundaries"),
+    "imd": ("mausam.imd.gov.in", "India Meteorological Department — weather, monsoon, climate data"),
+    "censusindia": ("censusindia.gov.in", "Census of India — population counts, demographics"),
+    "niti_aayog": ("niti.gov.in", "NITI Aayog — policy indicators, SDG tracking, development data"),
+    "mha": ("mha.gov.in", "Ministry of Home Affairs — internal security, Census administration"),
+    "mospi": ("mospi.gov.in", "Ministry of Statistics & Programme Implementation — official statistics, surveys"),
+    "rbi": ("rbi.org.in", "Reserve Bank of India — monetary policy, banking, economic data"),
+    "indiabudget": ("indiabudget.gov.in", "Union Budget documents"),
+    "finmin": ("finmin.gov.in", "Ministry of Finance"),
+    "moef": ("moef.gov.in", "Ministry of Environment, Forest & Climate Change"),
+    "cpcb": ("cpcb.nic.in", "Central Pollution Control Board — pollution data/standards"),
+    "nbaindia": ("nbaindia.org", "National Biodiversity Authority"),
+    "indiacode": ("indiacode.nic.in", "Statutes and Acts of India"),
+    "sci": ("sci.gov.in", "Supreme Court of India — judgments"),
+    "prsindia": ("prsindia.org", "PRS Legislative Research — bill and policy analysis"),
+    "loksabha": ("loksabha.nic.in", "Lok Sabha Secretariat"),
+    "darpg": ("darpg.gov.in", "Dept. of Administrative Reforms & Public Grievances — governance reforms"),
+    "eci": ("eci.gov.in", "Election Commission of India"),
+    "indiaculture": ("indiaculture.gov.in", "Ministry of Culture"),
+    "ccrt": ("ccrtindia.gov.in", "Centre for Cultural Resources and Training"),
+    "asi": ("asi.nic.in", "Archaeological Survey of India — monuments, heritage sites"),
+    "dst": ("dst.gov.in", "Dept. of Science & Technology"),
+    "dbtindia": ("dbtindia.gov.in", "Dept. of Biotechnology"),
+    "icmr": ("icmr.gov.in", "Indian Council of Medical Research"),
+    "mohfw": ("mohfw.gov.in", "Ministry of Health & Family Welfare — health data"),
+    "agriwelfare": ("agriwelfare.gov.in", "Ministry of Agriculture & Farmers Welfare"),
+    "icar": ("icar.gov.in", "Indian Council of Agricultural Research"),
+    "mea": ("mea.gov.in", "Ministry of External Affairs — foreign policy, bilateral relations"),
 }
 
-# Tier 2 — general UPSC-analysis / topper-strategy sites, used regardless of subject.
-REPUTED_UPSC_SITES = [
+# Fallback only, used when the per-chapter LLM planning step (see
+# ingest_pipeline._process_chapter) isn't available or fails — a coarse,
+# subject-level default so the pipeline degrades gracefully rather than
+# doing zero official-tier research for the chapter.
+SUBJECT_DEFAULT_DEPARTMENTS = {
+    "geography": ["isro", "surveyofindia", "imd", "bhuvan"],
+    "environment": ["moef", "cpcb", "nbaindia"],
+    "ecology": ["moef", "cpcb", "nbaindia"],
+    "polity": ["indiacode", "sci", "prsindia", "loksabha", "darpg"],
+    "governance": ["darpg", "prsindia", "sci"],
+    "economy": ["rbi", "indiabudget", "mospi", "finmin"],
+    "economics": ["rbi", "indiabudget", "mospi", "finmin"],
+    "history": ["indiaculture", "ccrt", "asi"],
+    "science": ["dst", "dbtindia", "icmr", "isro"],
+    "society": ["censusindia", "niti_aayog", "mospi"],
+    "international relations": ["mea"],
+    "agriculture": ["agriwelfare", "icar"],
+    "security": ["mha"],
+}
+
+# Tier 2 — general UPSC-analysis / topper-strategy / exam-prep sites, used
+# regardless of subject (unlike tier 1, all of these cover every UPSC
+# subject, so there's no topic->site mismatch to resolve per chapter the way
+# tier 1 needs). Each domain here was checked live (real HTTP response, not
+# just "sounds legitimate") before being added — same discipline as the
+# official government domains above; a hardcoded identifier that turns out
+# not to exist is exactly how this project's first bug happened (see
+# HANDOFF.md's fabricated-OpenRouter-model-slugs entry).
+#
+# Split into "core" (always queried) and "extra" (a few rotated in per
+# chapter, chosen at random) rather than all queried together every time —
+# DDG's search silently returns "No results found" once a query gets long
+# enough (empirically somewhere around 310-335 characters total, confirmed
+# by testing: adding search-query text or more site: clauses both push it
+# over), and since search_query length varies per chapter, no fixed site
+# count is safe in the worst case. _bounded_allowlist() below enforces the
+# actual safety margin regardless of how long a given chapter's query is;
+# core/extra is just about which sites get dropped first when trimming.
+UPSC_ANALYSIS_CORE_SITES = [
     "insightsonindia.com", "drishtiias.com", "forumias.com",
     "visionias.in", "iasbaba.com", "clearias.com",
 ]
+UPSC_ANALYSIS_EXTRA_SITES = [
+    "unacademy.com", "vedantu.com", "testbook.com", "byjusexamprep.com",
+    "oliveboard.in", "studyiq.com", "nextias.com", "adda247.com",
+    "examrace.com", "gktoday.in", "jagranjosh.com",
+]
+UPSC_ANALYSIS_EXTRA_SITES_PER_QUERY = 3
+MAX_SAFE_QUERY_LEN = 300  # comfortably under the ~310-335 char point where DDG starts returning nothing
+
+
+def _bounded_allowlist(query_text: str, sites: list[str], max_len: int = MAX_SAFE_QUERY_LEN) -> list[str]:
+    """Trims `sites` (from the end) until the full query _duckduckgo_search
+    would actually build (`query_text (site:a OR site:b OR ...)`) fits under
+    `max_len`. Put lower-priority sites at the end of `sites` so they're the
+    ones dropped first."""
+    selected = list(sites)
+    while selected:
+        full = query_text + " (" + " OR ".join(f"site:{d}" for d in selected) + ")"
+        if len(full) <= max_len:
+            return selected
+        selected.pop()
+    return selected
+
+
+def _upsc_analysis_search(query_text: str, max_results: int = 5) -> list[dict]:
+    """Shared tier-2 lookup: core sites always included, a bounded random
+    sample of extras rotated in, trimmed to a safe query length. Used both
+    per-chapter (research_topic) and once per book (research_book_strategy)."""
+    rotated_extras = random.sample(
+        UPSC_ANALYSIS_EXTRA_SITES, k=min(UPSC_ANALYSIS_EXTRA_SITES_PER_QUERY, len(UPSC_ANALYSIS_EXTRA_SITES))
+    )
+    sites = _bounded_allowlist(query_text, UPSC_ANALYSIS_CORE_SITES + rotated_extras)
+    return _duckduckgo_search(query_text, "upsc_analysis", max_results=max_results, allowlist=sites)
+
+
+def research_book_strategy(subject: str) -> list[dict]:
+    """
+    Book-level counterpart to research_topic(): run once per book (at
+    finalization, see ingest_pipeline._finalize_book), not once per chapter.
+    Grounds the book-level approach guide and importance recalibration in
+    real subject-wide strategy content — which chapters to prioritize, booklists,
+    overall weightage trends — that genuinely exists on UPSC-analysis sites
+    but isn't captured by any single chapter's own research (a chapter's
+    research is scoped to that chapter's topic, not "how to approach this
+    entire subject"). No official-government tier here — study strategy isn't
+    something a government source publishes an opinion on, so this is
+    UPSC-analysis-tier only, same allowlist and rotation as tier 2 above.
+
+    Returns the same shape as research_topic(): a deduplicated, capped,
+    sequentially-numbered list of {"id", "title", "url", "snippet", "tier"}.
+    """
+    query_text = f"{subject} UPSC prelims mains subject weightage priority strategy topper booklist"
+    findings = _upsc_analysis_search(query_text, max_results=8)
+
+    seen = set()
+    deduped = []
+    for f in findings:
+        if f["url"] in seen:
+            continue
+        seen.add(f["url"])
+        deduped.append(f)
+        if len(deduped) >= MAX_FINDINGS:
+            break
+    for i, f in enumerate(deduped, start=1):
+        f["id"] = i
+    return deduped
+
+
+def department_menu_for_prompt() -> str:
+    """Human-readable {id}: {domain} — {description} listing of well-known
+    departments, dropped into plan_chapter_research()'s prompt purely as
+    examples/inspiration — the LLM isn't limited to these, it names whatever
+    real department actually fits (see plan_chapter_research's docstring)."""
+    return "\n".join(f"- {key}: {domain} — {desc}" for key, (domain, desc) in OFFICIAL_DOMAINS.items())
+
+
+def _domains_for_department_ids(ids: list[str]) -> list[str]:
+    """Resolve LLM-picked department ids to real domains, silently dropping
+    any id that isn't in OFFICIAL_DOMAINS (an invented department) — same
+    trust-nothing pattern as ingest_pipeline._resolve_sources."""
+    domains = []
+    for i in ids or []:
+        entry = OFFICIAL_DOMAINS.get(i)
+        if entry:
+            domains.append(entry[0])
+    return domains
 
 
 def _official_domains_for(subject: str) -> list[str]:
+    """Coarse subject-level fallback (see SUBJECT_DEFAULT_DEPARTMENTS above)."""
     subject = (subject or "").lower()
-    for key, domains in OFFICIAL_SOURCES_BY_SUBJECT.items():
+    for key, dept_ids in SUBJECT_DEFAULT_DEPARTMENTS.items():
         if key in subject:
-            return domains
+            return _domains_for_department_ids(dept_ids)
     return []
 
 
@@ -138,18 +291,65 @@ def wikipedia_summary(topic: str) -> dict | None:
         return None
 
 
-def _duckduckgo_search(query: str, allowlist: list[str], tier: str, max_results: int = 3) -> list[dict]:
+GOV_TLDS = ("gov.in", "nic.in", "res.in")
+# A handful of genuinely official/statutory Indian bodies that don't happen
+# to sit on a .gov.in/.nic.in/.res.in domain (registered as .org/.org.in
+# instead) — an explicit, code-verified short list, not a loophole for
+# arbitrary domains. Anything else has to earn "official" tier the honest
+# way: an actual government TLD.
+OFFICIAL_NON_GOV_TLD_DOMAINS = ("rbi.org.in", "prsindia.org", "nbaindia.org")
+
+
+def _is_official_domain(url: str) -> bool:
     """
-    Best-effort list of findings for `query`, restricted to `allowlist` via
-    the site: operator. Empty list on failure, on an empty allowlist, or if
-    nothing in the response actually matches the allowlist (defense in
-    depth — never loosened to the open web).
+    True if `url`'s domain is verifiably a genuine Indian government site —
+    checked structurally (TLD), not against a pre-typed list of domains we
+    happened to think of in advance. .gov.in/.nic.in/.res.in registration is
+    controlled by India's National Informatics Centre and isn't obtainable
+    by an ordinary site, so this can't be gamed the way a hallucinated or
+    merely-plausible-looking domain string could be. This is what lets the
+    official tier's search be keyword-based (see research_topic) instead of
+    requiring every possible department's exact domain to already be known.
     """
-    if not allowlist:
+    domain = _domain_of(url)
+    if domain in OFFICIAL_NON_GOV_TLD_DOMAINS or any(domain.endswith("." + d) for d in OFFICIAL_NON_GOV_TLD_DOMAINS):
+        return True
+    return any(domain == tld or domain.endswith("." + tld) for tld in GOV_TLDS)
+
+
+def _duckduckgo_search(
+    query: str,
+    tier: str,
+    max_results: int = 3,
+    allowlist: list[str] | None = None,
+    domain_validator=None,
+) -> list[dict]:
+    """
+    Best-effort list of findings for `query`. Every result is checked after
+    the fact against exactly one of:
+      - `allowlist`: exact pre-known domains (site: operator in the query
+        too, though DDG doesn't always honor it — the allowlist re-check is
+        the real guarantee). Used for the upsc_analysis tier, where there's
+        no structural way to verify "this is a reputed exam-prep site" other
+        than a human having actually checked the domain in advance.
+      - `domain_validator`: a callable checking some verifiable property of
+        the domain itself (see _is_official_domain) rather than exact
+        pre-knowledge of it. Used for the official tier, where a real
+        government TLD is itself the guarantee — no site: operator is added
+        to the query, so this can surface any genuine .gov.in/.nic.in/.res.in
+        page relevant to the query, not only ones already in a list.
+    Exactly one of the two must be given. Empty list on failure, or if
+    nothing in the response survives the check (never loosened beyond it).
+    """
+    if not allowlist and not domain_validator:
         return []
 
-    site_filter = " OR ".join(f"site:{d}" for d in allowlist)
-    full_query = f"{query} ({site_filter})"
+    if allowlist:
+        site_filter = " OR ".join(f"site:{d}" for d in allowlist)
+        full_query = f"{query} ({site_filter})"
+    else:
+        full_query = query
+
     try:
         from ddgs import DDGS
 
@@ -166,23 +366,55 @@ def _duckduckgo_search(query: str, allowlist: list[str], tier: str, max_results:
         body = r.get("body") or ""
         if not url or not body:
             continue
-        if not _domain_allowed(url, allowlist):
+        if allowlist and not _domain_allowed(url, allowlist):
             continue  # DDG's site: operator isn't guaranteed to be honored
+        if domain_validator and not domain_validator(url):
+            continue
         findings.append({"title": title, "url": url, "snippet": body, "tier": tier})
     return findings
 
 
-def research_topic(topic: str, subject: str = "") -> list[dict]:
+def research_topic(topic: str, subject: str = "", plan: dict | None = None) -> list[dict]:
     """
     Gathers grounding context for one chapter topic, restricted to reputed
     sources only:
       - Wikipedia (factual grounding, un-restricted since it's inherently
         reputable).
-      - Tier 1 "official": primary/government sources chosen by `subject`
-        (skipped entirely if the subject doesn't map to a known domain set —
-        never guess a mapping).
+      - Tier 1 "official": primary/government sources for this specific
+        topic. Which departments to search for, and whether to query this
+        tier at all, is decided per-chapter by `plan` (see
+        llm_service.plan_chapter_research) rather than by a fixed
+        subject->domain mapping — a book's subject being "Geography" doesn't
+        mean every chapter is ISRO/Survey-of-India territory (a Population
+        chapter needs Census/NITI Aayog instead), and a chapter with nothing
+        that actually changes over time (a mechanism, a historical event)
+        has no reason to query government sites at all. The plan names
+        departments in plain language ("NITI Aayog", "Ministry of Health and
+        Family Welfare") rather than picking from a pre-typed domain list —
+        the search itself is unrestricted (no site: operator), and whatever
+        URL DDG actually returns is accepted into this tier only if
+        _is_official_domain() confirms it's a genuine .gov.in/.nic.in/.res.in
+        page. That's a structural guarantee instead of a coverage list: it
+        can surface any real government page relevant to the topic, not only
+        departments someone thought to hardcode in advance, while still
+        being impossible to spoof with an invented or look-alike domain.
+        Falls back to the coarse subject-level domain mapping if `plan` is
+        absent or the plan step failed, so this still degrades gracefully.
       - Tier 2 "upsc_analysis": well-known UPSC exam-analysis/topper-strategy
-        sites, for the weightage and topper-opinion angles.
+        sites, for the weightage and topper-opinion angles. Always queried,
+        regardless of topic or the plan's needs_current_data judgment — exam
+        weightage/strategy content exists for every chapter, not just
+        time-sensitive ones, and there's no structural TLD-style guarantee
+        for commercial sites the way there is for government ones, so this
+        tier stays restricted to a code-verified allowlist (a fixed core set
+        plus a few extras rotated in per chapter, see UPSC_ANALYSIS_CORE_SITES
+        / UPSC_ANALYSIS_EXTRA_SITES) rather than an open keyword search.
+
+    `topic` is used as-is when `plan` doesn't supply a more specific
+    `search_query` — the plan step is expected to disambiguate a generic
+    chapter title (e.g. "Population Growth" -> "population growth trends and
+    distribution in India") so tier-1/tier-2 queries don't drift toward
+    other countries' data.
 
     Returns a deduplicated (by URL), capped, sequentially-numbered list:
         [{"id": 1, "title": ..., "url": ..., "snippet": ..., "tier": ...}, ...]
@@ -190,6 +422,8 @@ def research_topic(topic: str, subject: str = "") -> list[dict]:
     callers should treat that as "no extra context available", not an error.
     """
     findings = []
+    plan = plan or {}
+    search_query = plan.get("search_query") or topic
 
     wiki = wikipedia_summary(topic)
     if wiki:
@@ -197,18 +431,31 @@ def research_topic(topic: str, subject: str = "") -> list[dict]:
 
     # DDG calls are the ones that get silently throttled on CI — space them
     # out generously (see DDG_REQUEST_DELAY_SECONDS above), and keep to at
-    # most 2 of them per chapter (merged into one combined tier-2 query
-    # below) to minimize how much traffic this run adds.
-    official_domains = _official_domains_for(subject)
-    if official_domains:
-        time.sleep(DDG_REQUEST_DELAY_SECONDS)
-        findings += _duckduckgo_search(topic, official_domains, "official")
+    # most 2 of them per chapter (one official-tier call covering every
+    # named department at once via OR, one combined tier-2 call) to minimize
+    # how much traffic this run adds.
+    if "needs_current_data" in plan:
+        if plan["needs_current_data"]:
+            # Up to 3 department names, capped so the combined OR query
+            # doesn't approach the length where DDG silently stops returning
+            # results (empirically well past 6 short domains, comfortably
+            # covering a handful of full department names).
+            departments = [d for d in (plan.get("departments") or []) if isinstance(d, str) and d.strip()][:3]
+            if departments:
+                time.sleep(DDG_REQUEST_DELAY_SECONDS)
+                official_query = f"{search_query} (" + " OR ".join(f'"{d}"' for d in departments) + ")"
+                findings += _duckduckgo_search(official_query, "official", domain_validator=_is_official_domain)
+    else:
+        # Plan step failed entirely — fall back to the coarse, pre-typed
+        # subject-level domain list (old behavior) rather than doing zero
+        # official-tier research for the chapter.
+        official_domains = _official_domains_for(subject)
+        if official_domains:
+            time.sleep(DDG_REQUEST_DELAY_SECONDS)
+            findings += _duckduckgo_search(search_query, "official", allowlist=official_domains)
 
     time.sleep(DDG_REQUEST_DELAY_SECONDS)
-    findings += _duckduckgo_search(
-        f"{topic} UPSC prelims weightage topper strategy previous year questions",
-        REPUTED_UPSC_SITES, "upsc_analysis", max_results=5,
-    )
+    findings += _upsc_analysis_search(f"{search_query} UPSC prelims weightage topper strategy previous year questions")
 
     # Dedupe by URL (first occurrence wins), cap, assign sequential ids.
     seen = set()

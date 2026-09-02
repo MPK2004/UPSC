@@ -16,6 +16,7 @@ create table if not exists books (
     check (status in ('pending', 'processing', 'ready', 'failed')),
   approach_guide text,
   error_message text,
+  sources jsonb not null default '[]'::jsonb,
   uploaded_at timestamptz not null default now(),
   processed_at timestamptz,
   claimed_at timestamptz
@@ -23,6 +24,7 @@ create table if not exists books (
 
 -- Idempotent column addition for existing databases
 alter table books add column if not exists claimed_at timestamptz;
+alter table books add column if not exists sources jsonb not null default '[]'::jsonb;
 
 create table if not exists chapters (
   id uuid primary key default gen_random_uuid(),
