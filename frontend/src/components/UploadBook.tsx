@@ -7,7 +7,12 @@ interface UploadBookProps {
   onUploaded: (bookId: string) => void;
 }
 
-const MAX_FILE_BYTES = 100 * 1024 * 1024; // 100MB — matches the Supabase bucket's file_size_limit
+// Supabase's project-wide global Storage upload limit is hard-capped at
+// 50MB on the Free plan (Dashboard -> Storage -> Settings) regardless of any
+// bucket's own file_size_limit, which can't be raised past it without
+// upgrading the plan — so this has to match that real ceiling, not the
+// bucket setting, or the client-side check just lies and fails late instead.
+const MAX_FILE_BYTES = 50 * 1024 * 1024;
 const COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes
 const LAST_UPLOAD_KEY = 'upsc_reelcastle_last_upload';
 
@@ -49,7 +54,7 @@ export const UploadBook: React.FC<UploadBookProps> = ({ onBack, onUploaded }) =>
       return;
     }
     if (picked.size > MAX_FILE_BYTES) {
-      setError('File is too large (100MB limit).');
+      setError('File is too large (50MB limit on the current Supabase plan).');
       setFile(null);
       return;
     }
