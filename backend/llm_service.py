@@ -86,6 +86,7 @@ def generate_json(
     system_prompt: str,
     max_attempts_per_model: int = 2,
     backoff_seconds: float = 5.0,
+    timeout_override: Optional[float] = None,
 ) -> Optional[Dict[str, Any]]:
     """
     Tries every configured provider's models in order, retrying each with
@@ -93,6 +94,14 @@ def generate_json(
     limits, truncated output, prose wrapped around the JSON) is expected —
     this is built to be patient, not fast, since the pipeline runs
     unattended on a schedule.
+
+    `timeout_override`, when given, caps the per-request timeout below each
+    provider's normal default (120s NVIDIA / 60s OpenRouter). Those defaults
+    are sized for the large chapter-generation call; a small, fast call like
+    plan_chapter_research shouldn't be able to eat minutes of the pipeline's
+    ~12-minute run budget waiting on one slow provider before falling
+    through to the next — better to fail fast and let the caller's own
+    fallback (research_topic's coarse subject-level mapping) take over.
     """
     providers = _provider_configs()
     if not providers:
@@ -112,8 +121,9 @@ def generate_json(
                     "max_tokens": provider["max_tokens"],
                     **provider["extra"],
                 }
+                request_timeout = min(provider["timeout"], timeout_override) if timeout_override else provider["timeout"]
                 try:
-                    res = requests.post(provider["url"], headers=provider["headers"], json=payload, timeout=provider["timeout"])
+                    res = requests.post(provider["url"], headers=provider["headers"], json=payload, timeout=request_timeout)
                     if res.status_code == 429:
                         print(f"[{provider['name']}] {model} rate-limited, backing off.")
                         time.sleep(backoff_seconds * attempt)
@@ -238,7 +248,11 @@ Respond with a single JSON object:
 {{"needs_current_data": true | false, "departments": [<up to 3 real department names, or empty array>], "search_query": "..."}}
 Respond with only the JSON object.
 """
-    return generate_json(prompt, CHAPTER_SYSTEM_PROMPT, max_attempts_per_model=1)
+    # Bounded to 20s per request (see generate_json's timeout_override) — a
+    # small JSON task like this shouldn't be able to consume minutes of the
+    # per-chapter run budget waiting on one slow provider before falling
+    # through, worst case ~5 models x 20s = 100s instead of up to ~7 minutes.
+    return generate_json(prompt, CHAPTER_SYSTEM_PROMPT, max_attempts_per_model=1, timeout_override=20)
 
 
 def generate_chapter_content(

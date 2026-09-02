@@ -45,5 +45,6 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
-          INGEST_RUN_BUDGET_SECONDS: "720"
+          INGEST_RUN_BUDGET_SECONDS: "600"
+          PYTHONUNBUFFERED: "1"
         run: python ingest_pipeline.py
