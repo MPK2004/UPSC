@@ -48,10 +48,6 @@ flowchart TD
   across the board) and writes an overall subject strategy guide, grounded
   in the same kind of real research.
 
-See [`HANDOFF.md`](HANDOFF.md) for the full build log — what was tried, what
-broke, why, and what's still open. That file is the detailed project
-memory; this one is the front door.
-
 ## Project structure
 
 ```
@@ -154,5 +150,4 @@ level).
 
 ## Status
 
-Actively developed — see [`HANDOFF.md`](HANDOFF.md) §5/§6 for open issues
-and what's next.
+Actively developed.
