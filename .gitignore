@@ -9,3 +9,7 @@ __pycache__/
 .qdrant_db/
 backend/qdrant_db/
 backend/extracted_content/
+
+# Local-only: personal dev log and a secret, never meant to be on GitHub
+HANDOFF.md
+UPSC_api_key.txt
