@@ -91,9 +91,13 @@ export async function uploadBook(
   if (!supabase) return { book: null, error: NO_CLIENT_ERROR };
 
   const storagePath = `${crypto.randomUUID()}.pdf`;
-  const { error: uploadError } = await supabase.storage
-    .from('book-uploads')
-    .upload(storagePath, file, { contentType: 'application/pdf' });
+  // A large file on a slow connection has more exposure to a dropped
+  // connection (not a timeout — fetch has no built-in one), so retry once
+  // before giving up.
+  let uploadError = (await supabase.storage.from('book-uploads').upload(storagePath, file, { contentType: 'application/pdf' })).error;
+  if (uploadError) {
+    uploadError = (await supabase.storage.from('book-uploads').upload(storagePath, file, { contentType: 'application/pdf' })).error;
+  }
   if (uploadError) return { book: null, error: uploadError.message };
 
   const { data, error } = await supabase

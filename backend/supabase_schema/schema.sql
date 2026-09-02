@@ -117,6 +117,6 @@ create policy "anon can upload books" on storage.objects
 -- Bucket-level enforcement (the actual security boundary — there's no auth,
 -- so PDF-only + a size cap is the only real guardrail on public uploads):
 update storage.buckets
-set file_size_limit = 52428800, -- 50MB
+set file_size_limit = 104857600, -- 100MB
     allowed_mime_types = array['application/pdf']
 where id = 'book-uploads';

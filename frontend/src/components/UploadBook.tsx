@@ -7,7 +7,7 @@ interface UploadBookProps {
   onUploaded: (bookId: string) => void;
 }
 
-const MAX_FILE_BYTES = 50 * 1024 * 1024; // 50MB — matches the Supabase bucket's file_size_limit
+const MAX_FILE_BYTES = 100 * 1024 * 1024; // 100MB — matches the Supabase bucket's file_size_limit
 const COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes
 const LAST_UPLOAD_KEY = 'upsc_reelcastle_last_upload';
 
@@ -49,7 +49,7 @@ export const UploadBook: React.FC<UploadBookProps> = ({ onBack, onUploaded }) =>
       return;
     }
     if (picked.size > MAX_FILE_BYTES) {
-      setError('File is too large (50MB limit).');
+      setError('File is too large (100MB limit).');
       setFile(null);
       return;
     }
@@ -168,6 +168,12 @@ export const UploadBook: React.FC<UploadBookProps> = ({ onBack, onUploaded }) =>
             <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
             <p>{error}</p>
           </div>
+        )}
+
+        {uploading && (
+          <p className="text-xs text-gray-500 text-center">
+            Uploading — this can take a while on a slow connection. Please don't close this tab.
+          </p>
         )}
 
         {cooldownActive && (
